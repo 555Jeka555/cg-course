@@ -10,31 +10,84 @@ import (
 )
 
 const (
-	width  = 500
-	height = 500
+	width  = 800
+	height = 600
 
-	vertexShaderSource = `
-		#version 410
+	vertexShaderSource = `#version 410
 		in vec3 vp;
+		uniform vec3 color;
+		out vec3 frag_color;
 		void main() {
 			gl_Position = vec4(vp, 1.0);
+			frag_color = color;
 		}
 	` + "\x00"
 
-	fragmentShaderSource = `
-		#version 410
-		out vec4 frag_colour;
+	fragmentShaderSource = `#version 410
+		in vec3 frag_color;
+		out vec4 out_color;
 		void main() {
-			frag_colour = vec4(1, 1, 1, 1.0);
+			out_color = vec4(frag_color, 1.0);
 		}
 	` + "\x00"
 )
 
 var (
-	triangle = []float32{
-		0, 0.5, 0,
-		-0.5, -0.5, 0,
-		0.5, -0.5, 0,
+	// Буква Е
+	letterE = []float32{
+		// Вертикальная линия
+		-0.9, 0.8, 0,
+		-0.9, -0.8, 0,
+
+		// Верхняя горизонтальная линия
+		-0.9, 0.8, 0,
+		-0.5, 0.8, 0,
+
+		// Средняя горизонтальная линия
+		-0.9, 0.0, 0,
+		-0.5, 0.0, 0,
+
+		// Нижняя горизонтальная линия
+		-0.9, -0.8, 0,
+		-0.5, -0.8, 0,
+	}
+
+	// Буква В
+	letterB = []float32{
+		// Вертикальная линия
+		-0.8, 0.8, 0,
+		-0.8, -0.8, 0,
+
+		// Верхняя дуга
+		-0.8, 0.5, 0,
+		-0.6, 0.6, 0,
+		-0.4, 0.5, 0,
+		-0.4, 0.4, 0,
+		-0.6, 0.3, 0,
+		-0.8, 0.4, 0,
+
+		// Нижняя дуга
+		-0.8, -0.5, 0,
+		-0.6, -0.6, 0,
+		-0.4, -0.5, 0,
+		-0.4, -0.4, 0,
+		-0.6, -0.3, 0,
+		-0.8, -0.4, 0,
+	}
+
+	// Буква А
+	letterA = []float32{
+		// Левый наклон
+		-0.8, -0.8, 0,
+		-0.5, 0.8, 0,
+
+		// Правый наклон
+		-0.5, 0.8, 0,
+		-0.2, -0.8, 0,
+
+		// Горизонтальная линия в центре
+		-0.65, 0.0, 0,
+		-0.35, 0.0, 0,
 	}
 )
 
@@ -45,18 +98,34 @@ func main() {
 	defer glfw.Terminate()
 	program := initOpenGL()
 
-	vao := makeVao(triangle)
+	vaoE := makeVao(letterE)
+	vaoB := makeVao(letterB)
+	vaoA := makeVao(letterA)
+
 	for !window.ShouldClose() {
-		draw(vao, window, program)
+		draw(vaoE, vaoB, vaoA, window, program)
 	}
 }
 
-func draw(vao uint32, window *glfw.Window, program uint32) {
+func draw(vaoE, vaoB, vaoA uint32, window *glfw.Window, program uint32) {
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 	gl.UseProgram(program)
 
-	gl.BindVertexArray(vao)
-	gl.DrawArrays(gl.TRIANGLES, 0, int32(len(triangle)/3))
+	// Отрисовка буквы Е
+	gl.BindVertexArray(vaoE)
+	colorUniform := gl.GetUniformLocation(program, gl.Str("color\x00"))
+	gl.Uniform3f(colorUniform, 1.0, 0.0, 0.0) // Красный цвет
+	gl.DrawArrays(gl.LINE_STRIP, 0, int32(len(letterE)/3))
+
+	// Отрисовка буквы В
+	gl.BindVertexArray(vaoB)
+	gl.Uniform3f(colorUniform, 0.0, 1.0, 0.0) // Зеленый цвет
+	gl.DrawArrays(gl.LINE_STRIP, 0, int32(len(letterB)/3))
+
+	// Отрисовка буквы А
+	gl.BindVertexArray(vaoA)
+	gl.Uniform3f(colorUniform, 0.0, 0.0, 1.0) // Синий цвет
+	gl.DrawArrays(gl.LINE_STRIP, 0, int32(len(letterA)/3))
 
 	glfw.PollEvents()
 	window.SwapBuffers()
@@ -72,7 +141,7 @@ func initGlfw() *glfw.Window {
 	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
 	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
 
-	window, err := glfw.CreateWindow(width, height, "Conway's Game of Life", nil, nil)
+	window, err := glfw.CreateWindow(width, height, "Initials E.V.A.", nil, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -81,7 +150,6 @@ func initGlfw() *glfw.Window {
 	return window
 }
 
-// initOpenGL initializes OpenGL and returns an intiialized program.
 func initOpenGL() uint32 {
 	if err := gl.Init(); err != nil {
 		panic(err)
@@ -106,7 +174,6 @@ func initOpenGL() uint32 {
 	return prog
 }
 
-// makeVao initializes and returns a vertex array from the points provided.
 func makeVao(points []float32) uint32 {
 	var vbo uint32
 	gl.GenBuffers(1, &vbo)
