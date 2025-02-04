@@ -5,6 +5,7 @@ import (
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
 	"log"
+	"math"
 	"runtime"
 	"strings"
 )
@@ -13,83 +14,58 @@ const (
 	width  = 800
 	height = 600
 
-	vertexShaderSource = `#version 410
-		in vec3 vp;
-		uniform vec3 color;
-		out vec3 frag_color;
-		void main() {
-			gl_Position = vec4(vp, 1.0);
-			frag_color = color;
-		}
-	` + "\x00"
+	vertexShaderSource = `
+    #version 410
+    in vec3 vp;
+    uniform vec2 pos;
+    void main() {
+      gl_Position = vec4(vp.x + pos.x, vp.y + pos.y, vp.z, 1.0);
+    }
+  ` + "\x00"
 
-	fragmentShaderSource = `#version 410
-		in vec3 frag_color;
-		out vec4 out_color;
-		void main() {
-			out_color = vec4(frag_color, 1.0);
-		}
-	` + "\x00"
+	fragmentShaderSource = `
+    #version 410
+    uniform vec3 color;
+    out vec4 frag_colour;
+    void main() {
+      frag_colour = vec4(color, 1.0);
+    }
+  ` + "\x00"
 )
 
 var (
-	// Буква Е
 	letterE = []float32{
-		// Вертикальная линия
-		-0.9, 0.8, 0,
-		-0.9, -0.8, 0,
-
-		// Верхняя горизонтальная линия
-		-0.9, 0.8, 0,
-		-0.5, 0.8, 0,
-
-		// Средняя горизонтальная линия
-		-0.9, 0.0, 0,
-		-0.5, 0.0, 0,
-
-		// Нижняя горизонтальная линия
-		-0.9, -0.8, 0,
-		-0.5, -0.8, 0,
+		-0.10, 0.10, 0, // Левый верхний угол
+		-0.10, -0.10, 0, // Левый нижний угол
+		0.10, -0.10, 0, // Правый нижний угол
+		0.10, -0.05, 0, // Правый нижний угол (верхняя часть)
+		-0.10, -0.05, 0, // Левый нижний угол (верхняя часть)
+		-0.10, 0.05, 0, // Левый верхний угол (нижняя часть)
+		0.10, 0.05, 0, // Правый верхний угол (нижняя часть)
+		0.10, 0.10, 0, // Правый верхний угол
 	}
 
-	// Буква В
-	letterB = []float32{
-		// Вертикальная линия
-		-0.8, 0.8, 0,
-		-0.8, -0.8, 0,
-
-		// Верхняя дуга
-		-0.8, 0.5, 0,
-		-0.6, 0.6, 0,
-		-0.4, 0.5, 0,
-		-0.4, 0.4, 0,
-		-0.6, 0.3, 0,
-		-0.8, 0.4, 0,
-
-		// Нижняя дуга
-		-0.8, -0.5, 0,
-		-0.6, -0.6, 0,
-		-0.4, -0.5, 0,
-		-0.4, -0.4, 0,
-		-0.6, -0.3, 0,
-		-0.8, -0.4, 0,
+	letterV = []float32{
+		-0.10, 0.10, 0, // Левый верхний угол
+		0.00, -0.10, 0, // Низ центра
+		0.10, 0.10, 0, // Правый верхний угол
 	}
 
-	// Буква А
 	letterA = []float32{
-		// Левый наклон
-		-0.8, -0.8, 0,
-		-0.5, 0.8, 0,
-
-		// Правый наклон
-		-0.5, 0.8, 0,
-		-0.2, -0.8, 0,
-
-		// Горизонтальная линия в центре
-		-0.65, 0.0, 0,
-		-0.35, 0.0, 0,
+		-0.10, -0.10, 0, // Левый нижний угол
+		0.00, 0.10, 0, // Верхний центр
+		0.10, -0.10, 0, // Правый нижний угол
+		0.00, 0.00, 0, // Центр
 	}
 )
+
+type Letter struct {
+	vao       uint32
+	position  [2]float32
+	color     [3]float32
+	speed     float32
+	direction int
+}
 
 func main() {
 	runtime.LockOSThread()
@@ -98,37 +74,43 @@ func main() {
 	defer glfw.Terminate()
 	program := initOpenGL()
 
-	vaoE := makeVao(letterE)
-	vaoB := makeVao(letterB)
-	vaoA := makeVao(letterA)
+	letters := []Letter{
+		{makeVao(letterE), [2]float32{-0.5, 0}, [3]float32{1.0, 0.0, 0.0}, 0.0005, 1},
+		{makeVao(letterV), [2]float32{0, 0}, [3]float32{0.0, 1.0, 0.0}, 0.0007, 1},
+		{makeVao(letterA), [2]float32{0.5, 0}, [3]float32{0.0, 0.0, 1.0}, 0.0003, 1},
+	}
 
 	for !window.ShouldClose() {
-		draw(vaoE, vaoB, vaoA, window, program)
+		draw(letters, window, program)
+		update(letters)
 	}
 }
 
-func draw(vaoE, vaoB, vaoA uint32, window *glfw.Window, program uint32) {
+func draw(letters []Letter, window *glfw.Window, program uint32) {
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 	gl.UseProgram(program)
 
-	// Отрисовка буквы Е
-	gl.BindVertexArray(vaoE)
-	colorUniform := gl.GetUniformLocation(program, gl.Str("color\x00"))
-	gl.Uniform3f(colorUniform, 1.0, 0.0, 0.0) // Красный цвет
-	gl.DrawArrays(gl.LINE_STRIP, 0, int32(len(letterE)/3))
+	posAttrib := gl.GetUniformLocation(program, gl.Str("pos\x00"))
+	colorAttrib := gl.GetUniformLocation(program, gl.Str("color\x00"))
 
-	// Отрисовка буквы В
-	gl.BindVertexArray(vaoB)
-	gl.Uniform3f(colorUniform, 0.0, 1.0, 0.0) // Зеленый цвет
-	gl.DrawArrays(gl.LINE_STRIP, 0, int32(len(letterB)/3))
-
-	// Отрисовка буквы А
-	gl.BindVertexArray(vaoA)
-	gl.Uniform3f(colorUniform, 0.0, 0.0, 1.0) // Синий цвет
-	gl.DrawArrays(gl.LINE_STRIP, 0, int32(len(letterA)/3))
+	for _, letter := range letters {
+		gl.Uniform2fv(posAttrib, 1, &letter.position[0])
+		gl.Uniform3fv(colorAttrib, 1, &letter.color[0])
+		gl.BindVertexArray(letter.vao)
+		gl.DrawArrays(gl.LINE_LOOP, 0, int32(len(letterE)/3))
+	}
 
 	glfw.PollEvents()
 	window.SwapBuffers()
+}
+
+func update(letters []Letter) {
+	for i := range letters {
+		letters[i].position[1] += letters[i].speed * float32(letters[i].direction)
+		if math.Abs(float64(letters[i].position[1])) > 0.5 {
+			letters[i].direction *= -1
+		}
+	}
 }
 
 func initGlfw() *glfw.Window {
@@ -141,7 +123,7 @@ func initGlfw() *glfw.Window {
 	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
 	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
 
-	window, err := glfw.CreateWindow(width, height, "Initials E.V.A.", nil, nil)
+	window, err := glfw.CreateWindow(width, height, "Jumping Letters", nil, nil)
 	if err != nil {
 		panic(err)
 	}
