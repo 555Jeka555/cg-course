@@ -1,3 +1,9 @@
+import { Letter } from "./Letter"
+import { ELetterDrawStrategy } from "./ELetterDrawStrategy";
+import { VLetterDrawStrategy } from "./VLetterDrawStrategy";
+import { ALetterDrawStrategy } from "./ALetterDrawStrategy";
+
+
 function main (): void {
     const canvas = document.getElementById("canvas") as HTMLCanvasElement; // Явное указание типа
     if (!canvas) {
@@ -11,7 +17,11 @@ function main (): void {
         return;
     }
 
-    const letters: Letter[] = []
+    const letters: Letter[] = [
+        new Letter(new ELetterDrawStrategy(), 50, 'red', 0),
+        new Letter(new VLetterDrawStrategy(), 120, 'green', 200),
+        new Letter(new ALetterDrawStrategy(), 190, 'blue', 400),
+    ]
 
     function animate() {
         if (!ctx) {
