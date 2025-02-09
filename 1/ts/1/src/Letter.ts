@@ -1,7 +1,7 @@
 import { LetterDrawStrategyInterface } from "./LetterDrawStrategyInterface";
 
 export class Letter {
-    private static readonly INIT_Y: number = 100;
+    private static readonly INIT_Y: number = 120;
     private static readonly HEIGHT_OF_JUMP: number = 50;
     private static readonly ANIMATION_DURATION: number = 1000;
 
@@ -27,9 +27,10 @@ export class Letter {
 
         ctx.fillStyle = this.color;
 
-        ctx.beginPath();
         ctx.strokeStyle = this.color;
         ctx.lineWidth = 2;
+
+        ctx.beginPath();
         this.letterDrawStrategy.draw(ctx, this.x, y);
 
         ctx.stroke();
