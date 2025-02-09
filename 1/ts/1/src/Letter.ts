@@ -1,7 +1,7 @@
 import { LetterDrawStrategyInterface } from "./LetterDrawStrategyInterface";
 
 export class Letter {
-    private static readonly INIT_Y: number = 120;
+    private static readonly INIT_Y: number = 350;
     private static readonly HEIGHT_OF_JUMP: number = 50;
     private static readonly ANIMATION_DURATION: number = 1000;
 

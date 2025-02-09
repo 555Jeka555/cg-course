@@ -18,9 +18,9 @@ function main (): void {
     }
 
     const letters: Letter[] = [
-        new Letter(new ELetterDrawStrategy(), 50, 'red', 0),
-        new Letter(new VLetterDrawStrategy(), 120, 'green', 200),
-        new Letter(new ALetterDrawStrategy(), 190, 'blue', 400),
+        new Letter(new ELetterDrawStrategy(), 200, 'red', 0),
+        new Letter(new VLetterDrawStrategy(), 370, 'green', 200),
+        new Letter(new ALetterDrawStrategy(), 540, 'blue', 400),
     ]
 
     function animate() {
