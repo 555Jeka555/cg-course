@@ -21,16 +21,15 @@ export class Letter {
         if (this.startTime === null) {
             this.startTime = currentTime;
         }
+
         const time = (currentTime - this.startTime + this.phase) % this.animationDuration;
         const jumpProgress = Math.sin(time / this.animationDuration * Math.PI);
         const y = this.initialY - jumpProgress * this.jumpHeight;
 
         ctx.fillStyle = this.color;
-
         ctx.strokeStyle = this.color;
         ctx.lineWidth = 2;
 
-        ctx.beginPath();
         this.letterDrawStrategy.draw(ctx, this.x, y);
 
         ctx.stroke();

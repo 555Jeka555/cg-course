@@ -2,6 +2,8 @@ import { LetterDrawStrategyInterface } from "./LetterDrawStrategyInterface";
 
 export class ELetterDrawStrategy implements LetterDrawStrategyInterface {
     draw(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+        ctx.beginPath();
+
         ctx.moveTo(x, y);
         ctx.lineTo(x, y - 120);
 
@@ -13,5 +15,7 @@ export class ELetterDrawStrategy implements LetterDrawStrategyInterface {
 
         ctx.moveTo(x, y - 60);
         ctx.lineTo(x + 50, y - 60);
+
+        ctx.closePath();
     }
 }
