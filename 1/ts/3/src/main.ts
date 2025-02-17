@@ -16,10 +16,10 @@ function main (): void {
     }
 
     const circleDrawer = new CircleDrawer(canvas);
-    circleDrawer.drawCircle(100, 100, 50, 'blue', 'green');
+    circleDrawer.drawCircle(100, 100, 2, 'blue', 'green');
 
     const lineDrawer = new LineDrawer(canvas);
-    lineDrawer.drawLine(10, 10, 200, 150, 'red');
+    lineDrawer.drawLine(2, 6, 12, 2, 'red');
 }
 
 main();

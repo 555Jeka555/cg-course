@@ -7,6 +7,7 @@ export class CircleDrawer {
         this.ctx = canvas.getContext('2d')!;
     }
 
+    // TODO Радиус 2px не должен получаться квадрат
     drawCircle(centerX: number, centerY: number, radius: number, color: string, fillColor?: string) {
         if (fillColor) {
             this.fillCircle(centerX, centerY, radius, fillColor);
