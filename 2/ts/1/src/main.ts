@@ -1,9 +1,14 @@
 // TODO Распилить на файлы
 // TODO Сделать модель активной, а не пассивной
 
+interface ImagePosition {
+    image: HTMLImageElement;
+    x: number;
+    y: number;
+}
 
 interface IObserver {
-    update(images: Array<{ image: HTMLImageElement; x: number; y: number }>)
+    update(images: Array<ImagePosition>)
 }
 
 interface IObservable {
@@ -15,7 +20,7 @@ interface IObservable {
 }
 
 class ImageDocument implements IObservable {
-    private images: Array<{ image: HTMLImageElement; x: number; y: number }> = [];
+    private images: Array<ImagePosition> = [];
     private isDragging: boolean = false;
     private dragStart: { x: number; y: number } = {x: 0, y: 0};
     private draggedImageIndex: number | null = null;
@@ -95,23 +100,23 @@ class ImageView implements IObserver {
     private readonly canvas: HTMLCanvasElement;
     private ctx: CanvasRenderingContext2D;
     private document: ImageDocument;
-    private button: { x: number; y: number; width: number; height: number };
+    private openFileButton: HTMLButtonElement;
 
-    constructor(width: number, height: number, canvas: HTMLCanvasElement, document: ImageDocument) {
+    constructor(width: number, height: number, canvas: HTMLCanvasElement, imageDocument: ImageDocument) {
         this.width = width;
         this.height = height;
         this.canvas = canvas;
         this.ctx = this.canvas.getContext('2d')!;
-        this.document = document;
+        this.document = imageDocument;
 
-        this.button = {
-            x: 20,
-            y: 30,
-            width: 80,
-            height: 30,
-        };
+        // Находим кнопку по ID
+        this.openFileButton = document.getElementById('openFileButton') as HTMLButtonElement;
 
         this.setupCanvas();
+
+        this.openFileButton.addEventListener('click', () => {
+            this.openFileDialog();
+        });
 
         this.render();
     }
@@ -124,29 +129,19 @@ class ImageView implements IObserver {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
         this.drawCheckerboard();
-
-        this.drawButton();
     }
 
-    // TODO Кнопку в html
-    public openFileDialog(x: number, y: number): void {
-        if (
-            x >= this.button.x &&
-            x <= this.button.x + this.button.width &&
-            y >= this.button.y &&
-            y <= this.button.y + this.button.height
-        ) {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = '.png,.jpg,.jpeg,.bmp';
-            input.onchange = (e) => {
-                const file = (e.target as HTMLInputElement).files?.[0];
-                if (file) {
-                    this.document.loadImage(file);
-                }
-            };
-            input.click();
-        }
+    public openFileDialog(): void {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.png,.jpg,.jpeg,.bmp';
+        input.onchange = (e) => {
+            const file = (e.target as HTMLInputElement).files?.[0];
+            if (file) {
+                this.document.loadImage(file);
+            }
+        };
+        input.click();
     }
 
     private setupCanvas(): void {
@@ -169,24 +164,9 @@ class ImageView implements IObserver {
         }
     }
 
-    private drawButton(): void {
-        this.ctx.fillStyle = '#007bff';
-        this.ctx.fillRect(this.button.x, this.button.y, this.button.width, this.button.height);
-
-        this.ctx.fillStyle = '#fff';
-        this.ctx.font = '16px Arial';
-        this.ctx.textAlign = 'center';
-        this.ctx.textBaseline = 'middle';
-        this.ctx.fillText(
-            'Open File',
-            this.button.x + this.button.width / 2,
-            this.button.y + this.button.height / 2
-        );
-    }
-
-    public update(images: Array<{ image: HTMLImageElement; x: number; y: number }>) {
+    public update(images: Array<ImagePosition>) {
         this.render();
-        images.forEach(img =>  this.ctx.drawImage(img.image, img.x, img.y));
+        images.forEach(img => this.ctx.drawImage(img.image, img.x, img.y));
     }
 }
 
@@ -221,12 +201,6 @@ class ImageController {
             this.model.endDrag();
         });
 
-        this.view.getCanvas().addEventListener('click', (e) => {
-            const rect = this.view.getCanvas().getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            this.view.openFileDialog(x, y);
-        });
     }
 }
 
