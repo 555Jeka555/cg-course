@@ -162,6 +162,10 @@ class ImageView implements IObserver {
     private readonly ctx: CanvasRenderingContext2D;
     private document: ImageDocument;
     private buttons: Array<{ text: string; x: number; y: number; width: number; height: number; action: () => void }>;
+    private openFileButton: HTMLButtonElement;
+    private newFileButton: HTMLButtonElement;
+    private saveButton: HTMLButtonElement;
+    private colorPickerButton: HTMLButtonElement;
 
     constructor(width: number, height: number, canvas: HTMLCanvasElement, documentImage: ImageDocument) {
         this.width = width;
@@ -181,66 +185,33 @@ class ImageView implements IObserver {
         return this.canvas;
     }
 
-    public getButtons(): Array<{
-        text: string;
-        x: number;
-        y: number;
-        width: number;
-        height: number;
-        action: () => void
-    }> {
-        return this.buttons;
-    }
-
-    public getCtx(): CanvasRenderingContext2D {
-        return this.ctx;
-    }
-
     private initButtons(): void {
-        this.buttons = [
-            {
-                text: 'Open File',
-                x: 20,
-                y: 30,
-                width: 80,
-                height: 30,
-                action: () => this.openFileDialog(),
-            },
-            {
-                text: 'New',
-                x: 110,
-                y: 30,
-                width: 80,
-                height: 30,
-                action: () => this.document.createNewImage(),
-            },
-            {
-                text: 'Save As',
-                x: 200,
-                y: 30,
-                width: 80,
-                height: 30,
-                action: () => {
-                    const name = prompt('Enter name file:');
-                    this.saveImage(name);
-                },
-            },
-            {
-                text: 'Choose Color',
-                x: 290,
-                y: 30,
-                width: 100,
-                height: 30,
-                action: () => {
-                    const colorPicker = document.getElementById('color-picker') as HTMLInputElement;
-                    colorPicker.click();
-                    console.log(colorPicker)
-                    colorPicker.addEventListener('input', () => {
-                        this.document.setDrawingColor(colorPicker.value);
-                    });
-                },
-            },
-        ];
+        this.openFileButton = document.getElementById('openFileButton') as HTMLButtonElement;
+        this.newFileButton = document.getElementById('newButton') as HTMLButtonElement;
+        this.saveButton = document.getElementById('saveButton') as HTMLButtonElement;
+        this.colorPickerButton = document.getElementById('colorPickerButton') as HTMLButtonElement;
+
+        this.openFileButton.addEventListener('click', () => {
+            this.openFileDialog();
+        });
+
+        this.newFileButton.addEventListener('click', () => {
+            this.document.createNewImage();
+        });
+
+        this.saveButton.addEventListener('click', () => {
+            const name = prompt('Enter name file:');
+            this.saveImage(name);
+        });
+
+        this.colorPickerButton.addEventListener('click', () => {
+            const colorPicker = document.getElementById('color-picker') as HTMLInputElement;
+            colorPicker.click();
+            console.log(colorPicker)
+            colorPicker.addEventListener('input', () => {
+                this.document.setDrawingColor(colorPicker.value);
+            });
+        });
     }
 
     private setupCanvas(): void {
@@ -270,8 +241,6 @@ class ImageView implements IObserver {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
         this.drawCheckerboard();
-
-        this.drawButtons();
     }
 
     private renderLines(line: Line): void {
@@ -292,23 +261,6 @@ class ImageView implements IObserver {
                 this.ctx.fillStyle = (i + j) % (size * 2) === 0 ? '#ccc' : '#fff';
                 this.ctx.fillRect(i, j, size, size);
             }
-        }
-    }
-
-    private drawButtons(): void {
-        for (const button of this.buttons) {
-            this.ctx.fillStyle = '#007bff';
-            this.ctx.fillRect(button.x, button.y, button.width, button.height);
-
-            this.ctx.fillStyle = '#fff';
-            this.ctx.font = '14px Arial';
-            this.ctx.textAlign = 'center';
-            this.ctx.textBaseline = 'middle';
-            this.ctx.fillText(
-                button.text,
-                button.x + button.width / 2,
-                button.y + button.height / 2
-            );
         }
     }
 
@@ -354,24 +306,6 @@ class ImageController {
     }
 
     private setupEventListeners(): void {
-        this.view.getCanvas().addEventListener('click', (e) => {
-            const rect = this.view.getCanvas().getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-
-            for (const button of this.view.getButtons()) {
-                if (
-                    x >= button.x &&
-                    x <= button.x + button.width &&
-                    y >= button.y &&
-                    y <= button.y + button.height
-                ) {
-                    button.action();
-                    break;
-                }
-            }
-        });
-
         this.view.getCanvas().addEventListener('mousedown', (e) => {
             const rect = this.view.getCanvas().getBoundingClientRect();
             const x = e.clientX - rect.left;

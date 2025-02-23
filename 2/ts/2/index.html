@@ -1,14 +1,38 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + TS</title>
-  </head>
-  <body>
-    <canvas id="canvas" width="800" height="600"></canvas>
-    <label for="color-picker"></label><input type="color" id="color-picker" style="display: none;">
-    <script type="module" src="/src/main.ts"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vite + TS</title>
+  <style>
+    /* Стиль для кнопок */
+    .button-container {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      z-index: 10;
+    }
+    .button-container button {
+      margin-right: 10px;
+      padding: 10px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+<div class="button-container">
+  <button id="openFileButton">Open File</button>
+  <button id="newButton">New</button>
+  <button id="saveButton">Save As</button>
+  <button id="colorPickerButton">Choose Color</button>
+  <input type="color" id="color-picker" style="display: none;" />
+</div>
+
+<!-- Холст для рисования -->
+<canvas id="canvas" width="800" height="600"></canvas>
+
+<script type="module" src="/src/main.ts"></script>
+</body>
 </html>
