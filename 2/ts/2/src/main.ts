@@ -1,15 +1,47 @@
-class ImageDocument {
+interface ImagePosition {
+    image: HTMLImageElement;
+    x: number;
+    y: number;
+}
+
+interface Line {
+    lastPosition: Position,
+    position: Position,
+    drawingColor: string,
+    brushSize: number,
+}
+
+interface Position {
+    x: number;
+    y: number;
+}
+
+
+interface IObserver {
+    update(images: Array<ImagePosition>, lines: Array<Line>)
+}
+
+interface IObservable {
+    addObserver(observer: IObserver): void
+
+    notifyListeners(): void
+
+    removeObserver(): void
+}
+
+class ImageDocument implements IObservable {
     private readonly INIT_POSITION_X = window.innerWidth / 3 - 100;
     private readonly INIT_POSITION_Y = window.innerHeight / 3 - 100;
     private readonly width: number = 0;
     private readonly height: number = 0;
-    private images: Array<{ image: HTMLImageElement; x: number; y: number }> = [];
+    private images: Array<ImagePosition> = [];
+    private lines: Array<Line> = [];
     private isDrawing: boolean = false;
     private drawingColor: string = '#000000';
     private brushSize: number = 5;
     private lastX: number = 0;
     private lastY: number = 0;
-    private onImageLoaded: (() => void) | null = null;
+    private observers: Array<IObserver> = [];
 
     constructor(width: number, height: number) {
         this.width = width;
@@ -20,20 +52,14 @@ class ImageDocument {
         this.drawingColor = drawingColor;
     }
 
-    public setOnImageLoaded(callback: () => void): void {
-        this.onImageLoaded = callback;
-    }
-
     public loadImage(file: File): void {
         const reader = new FileReader();
         reader.onload = (e) => {
             const img = new Image();
             img.src = e.target?.result as string;
             img.onload = () => {
-                this.images.push({ image: img, x: this.INIT_POSITION_X, y: this.INIT_POSITION_Y });
-                if (this.onImageLoaded) {
-                    this.onImageLoaded();
-                }
+                this.images.push({image: img, x: this.INIT_POSITION_X, y: this.INIT_POSITION_Y});
+                this.notifyListeners();
             };
         };
         reader.readAsDataURL(file);
@@ -50,15 +76,10 @@ class ImageDocument {
         const img = new Image();
         img.src = canvas.toDataURL();
         img.onload = () => {
-            this.images.push({ image: img, x: this.INIT_POSITION_X, y: this.INIT_POSITION_Y });
-            if (this.onImageLoaded) {
-                this.onImageLoaded();
-            }
+            this.lines = [];
+            this.images.push({image: img, x: this.INIT_POSITION_X, y: this.INIT_POSITION_Y});
+            this.notifyListeners();
         };
-    }
-
-    public getImages(): Array<{ image: HTMLImageElement; x: number; y: number }> {
-        return this.images;
     }
 
     public startDrawing(x: number, y: number): void {
@@ -67,7 +88,7 @@ class ImageDocument {
         this.lastY = y;
     }
 
-    public draw(x: number, y: number, ctx: CanvasRenderingContext2D): void {
+    public draw(x: number, y: number): void {
         if (this.isDrawing) {
             if (x < this.INIT_POSITION_X || y < this.INIT_POSITION_Y || x > this.INIT_POSITION_X + this.width || y > this.INIT_POSITION_Y + this.height) {
                 this.lastX = x;
@@ -75,13 +96,20 @@ class ImageDocument {
                 return;
             }
 
-            ctx.strokeStyle = this.drawingColor;
-            ctx.lineWidth = this.brushSize;
-            ctx.lineCap = 'round';
-            ctx.beginPath();
-            ctx.moveTo(this.lastX, this.lastY);
-            ctx.lineTo(x, y);
-            ctx.stroke();
+            this.lines.push({
+                    lastPosition: {
+                        x: this.lastX,
+                        y: this.lastY,
+                    },
+                    position: {
+                        x: x,
+                        y: y,
+                    },
+                    drawingColor: this.drawingColor,
+                    brushSize: this.brushSize,
+                },
+            );
+            this.notifyListeners();
 
             this.lastX = x;
             this.lastY = y;
@@ -111,9 +139,23 @@ class ImageDocument {
     public getInitY(): number {
         return this.INIT_POSITION_Y;
     }
+
+    addObserver(observer: IObserver): void {
+        this.observers.push(observer)
+    }
+
+    removeObserver(): void {
+        this.observers = []
+    }
+
+    notifyListeners(): void {
+        this.observers.forEach(observer =>
+            observer.update(this.images, this.lines)
+        )
+    }
 }
 
-class ImageView {
+class ImageView implements IObserver {
     private readonly canvas: HTMLCanvasElement;
     private readonly height: number;
     private readonly width: number;
@@ -130,8 +172,6 @@ class ImageView {
 
         this.initButtons();
 
-        this.document.setOnImageLoaded(() => this.render());
-
         this.setupCanvas();
 
         this.render();
@@ -141,11 +181,18 @@ class ImageView {
         return this.canvas;
     }
 
-    public getButtons(): Array<{ text: string; x: number; y: number; width: number; height: number; action: () => void }> {
+    public getButtons(): Array<{
+        text: string;
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+        action: () => void
+    }> {
         return this.buttons;
     }
 
-    public getCtx():CanvasRenderingContext2D {
+    public getCtx(): CanvasRenderingContext2D {
         return this.ctx;
     }
 
@@ -225,11 +272,17 @@ class ImageView {
         this.drawCheckerboard();
 
         this.drawButtons();
+    }
 
-        const images = this.document.getImages();
-        images.forEach((img) => {
-            this.ctx.drawImage(img.image, img.x, img.y);
-        });
+    private renderLines(line: Line): void {
+        this.ctx.strokeStyle = line.drawingColor;
+        this.ctx.lineWidth = line.brushSize;
+        this.ctx.lineCap = 'round';
+        this.ctx.beginPath();
+        this.ctx.moveTo(line.lastPosition.x, line.lastPosition.y);
+        this.ctx.lineTo(line.position.x, line.position.y);
+        this.ctx.stroke();
+
     }
 
     private drawCheckerboard(): void {
@@ -260,29 +313,33 @@ class ImageView {
     }
 
     private saveImage(name: string): void {
-        if (this.document.getImages().length > 0) {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d')!;
-            canvas.width = this.document.getWidth();
-            canvas.height = this.document.getHeight();
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d')!;
+        canvas.width = this.document.getWidth();
+        canvas.height = this.document.getHeight();
 
-            ctx.drawImage(
-                this.canvas,
-                this.document.getInitX(),
-                this.document.getInitY(),
-                this.document.getWidth(),
-                this.document.getHeight(),
-                0,
-                0,
-                this.document.getWidth(),
-                this.document.getHeight(),
-            );
+        ctx.drawImage(
+            this.canvas,
+            this.document.getInitX(),
+            this.document.getInitY(),
+            this.document.getWidth(),
+            this.document.getHeight(),
+            0,
+            0,
+            this.document.getWidth(),
+            this.document.getHeight(),
+        );
 
-            const link = document.createElement('a');
-            link.download = `${name}.png`;
-            link.href = canvas.toDataURL(`image/png}`);
-            link.click();
-        }
+        const link = document.createElement('a');
+        link.download = `${name}.png`;
+        link.href = canvas.toDataURL(`image/png}`);
+        link.click();
+    }
+
+    update(images: Array<ImagePosition>, lines: Array<Line>): void {
+        this.render();
+        images.forEach(img => this.ctx.drawImage(img.image, img.x, img.y));
+        lines.forEach(line => this.renderLines(line))
     }
 }
 
@@ -331,7 +388,7 @@ class ImageController {
             const y = e.clientY - rect.top;
 
             if (this.model.isDraw()) {
-                this.model.draw(x, y, this.view.getCtx());
+                this.model.draw(x, y);
             }
         });
 
@@ -348,6 +405,7 @@ function main(): void {
     if (canvas && colorPicker) {
         const imageDocument = new ImageDocument(800, 600);
         const view = new ImageView(window.innerWidth, window.innerHeight, canvas, imageDocument);
+        imageDocument.addObserver(view)
         new ImageController(imageDocument, view);
     } else {
         console.error("Canvas or color picker element not found!");

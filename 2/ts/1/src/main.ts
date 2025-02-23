@@ -12,11 +12,11 @@ interface IObserver {
 }
 
 interface IObservable {
-    addObserver(observer: IObserver)
+    addObserver(observer: IObserver): void
 
     notifyListeners(): void
 
-    removeObserver()
+    removeObserver(): void
 }
 
 class ImageDocument implements IObservable {
@@ -88,8 +88,7 @@ class ImageDocument implements IObservable {
 
     notifyListeners(): void {
         this.observers.forEach(observer =>
-            observer.update(this.images
-            )
+            observer.update(this.images)
         )
     }
 }
@@ -109,7 +108,6 @@ class ImageView implements IObserver {
         this.ctx = this.canvas.getContext('2d')!;
         this.document = imageDocument;
 
-        // Находим кнопку по ID
         this.openFileButton = document.getElementById('openFileButton') as HTMLButtonElement;
 
         this.setupCanvas();
