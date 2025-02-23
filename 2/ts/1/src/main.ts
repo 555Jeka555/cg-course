@@ -1,15 +1,25 @@
 // TODO Распилить на файлы
 // TODO Сделать модель активной, а не пассивной
-class ImageDocument {
+
+
+interface IObserver {
+    update(images: Array<{ image: HTMLImageElement; x: number; y: number }>)
+}
+
+interface IObservable {
+    addObserver(observer: IObserver)
+
+    notifyListeners(): void
+
+    removeObserver()
+}
+
+class ImageDocument implements IObservable {
     private images: Array<{ image: HTMLImageElement; x: number; y: number }> = [];
     private isDragging: boolean = false;
-    private dragStart: { x: number; y: number } = { x: 0, y: 0 };
+    private dragStart: { x: number; y: number } = {x: 0, y: 0};
     private draggedImageIndex: number | null = null;
-    private onImageLoaded: (() => void) | null = null;
-
-    setOnImageLoaded(callback: () => void): void {
-        this.onImageLoaded = callback;
-    }
+    private observers: Array<IObserver> = [];
 
     loadImage(file: File): void {
         const reader = new FileReader();
@@ -17,17 +27,11 @@ class ImageDocument {
             const img = new Image();
             img.src = e.target?.result as string;
             img.onload = () => {
-                this.images.push({ image: img, x: 0, y: 0 });
-                if (this.onImageLoaded) {
-                    this.onImageLoaded();
-                }
+                this.images.push({image: img, x: 0, y: 0});
+                this.notifyListeners();
             };
         };
         reader.readAsDataURL(file);
-    }
-
-    getImages(): Array<{ image: HTMLImageElement; x: number; y: number }> {
-        return this.images;
     }
 
     startDrag(x: number, y: number): void {
@@ -56,6 +60,7 @@ class ImageDocument {
             const img = this.images[this.draggedImageIndex];
             img.x = x - this.dragStart.x;
             img.y = y - this.dragStart.y;
+            this.notifyListeners();
         }
     }
 
@@ -67,9 +72,24 @@ class ImageDocument {
     isDrag(): boolean {
         return this.isDragging;
     }
+
+    addObserver(observer: IObserver): void {
+        this.observers.push(observer)
+    }
+
+    removeObserver(): void {
+        this.observers = []
+    }
+
+    notifyListeners(): void {
+        this.observers.forEach(observer =>
+            observer.update(this.images
+            )
+        )
+    }
 }
 
-class ImageView {
+class ImageView implements IObserver {
     private readonly width: number;
     private readonly height: number;
     private readonly canvas: HTMLCanvasElement;
@@ -91,8 +111,6 @@ class ImageView {
             height: 30,
         };
 
-        this.document.setOnImageLoaded(() => this.render());
-
         this.setupCanvas();
 
         this.render();
@@ -108,11 +126,6 @@ class ImageView {
         this.drawCheckerboard();
 
         this.drawButton();
-
-        const images = this.document.getImages();
-        images.forEach((img) => {
-            this.ctx.drawImage(img.image, img.x, img.y);
-        });
     }
 
     // TODO Кнопку в html
@@ -130,7 +143,6 @@ class ImageView {
                 const file = (e.target as HTMLInputElement).files?.[0];
                 if (file) {
                     this.document.loadImage(file);
-                    this.render();
                 }
             };
             input.click();
@@ -171,6 +183,11 @@ class ImageView {
             this.button.y + this.button.height / 2
         );
     }
+
+    public update(images: Array<{ image: HTMLImageElement; x: number; y: number }>) {
+        this.render();
+        images.forEach(img =>  this.ctx.drawImage(img.image, img.x, img.y));
+    }
 }
 
 class ImageController {
@@ -197,7 +214,6 @@ class ImageController {
                 const x = e.clientX - rect.left;
                 const y = e.clientY - rect.top;
                 this.model.drag(x, y);
-                this.view.render();
             }
         });
 
@@ -221,6 +237,7 @@ function main(): void {
     if (canvas) {
         const document = new ImageDocument();
         const view = new ImageView(window.innerWidth, window.innerHeight, canvas, document);
+        document.addObserver(view)
         new ImageController(document, view);
     } else {
         console.error("Canvas element not found!");
