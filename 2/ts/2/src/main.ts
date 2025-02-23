@@ -16,15 +16,15 @@ class ImageDocument {
         this.height = height;
     }
 
-    setDrawingColor(drawingColor: string): void {
+    public setDrawingColor(drawingColor: string): void {
         this.drawingColor = drawingColor;
     }
 
-    setOnImageLoaded(callback: () => void): void {
+    public setOnImageLoaded(callback: () => void): void {
         this.onImageLoaded = callback;
     }
 
-    loadImage(file: File): void {
+    public loadImage(file: File): void {
         const reader = new FileReader();
         reader.onload = (e) => {
             const img = new Image();
@@ -39,7 +39,7 @@ class ImageDocument {
         reader.readAsDataURL(file);
     }
 
-    createNewImage(): void {
+    public createNewImage(): void {
         const canvas = document.createElement('canvas');
         canvas.width = this.width;
         canvas.height = this.height;
@@ -57,17 +57,17 @@ class ImageDocument {
         };
     }
 
-    getImages(): Array<{ image: HTMLImageElement; x: number; y: number }> {
+    public getImages(): Array<{ image: HTMLImageElement; x: number; y: number }> {
         return this.images;
     }
 
-    startDrawing(x: number, y: number): void {
+    public startDrawing(x: number, y: number): void {
         this.isDrawing = true;
         this.lastX = x;
         this.lastY = y;
     }
 
-    draw(x: number, y: number, ctx: CanvasRenderingContext2D): void {
+    public draw(x: number, y: number, ctx: CanvasRenderingContext2D): void {
         if (this.isDrawing) {
             if (x < this.INIT_POSITION_X || y < this.INIT_POSITION_Y || x > this.INIT_POSITION_X + this.width || y > this.INIT_POSITION_Y + this.height) {
                 this.lastX = x;
@@ -88,31 +88,30 @@ class ImageDocument {
         }
     }
 
-    endDrawing(): void {
+    public endDrawing(): void {
         this.isDrawing = false;
     }
 
-    isDraw(): boolean {
+    public isDraw(): boolean {
         return this.isDrawing && this.images.length > 0;
     }
 
-    getWidth(): number {
+    public getWidth(): number {
         return this.width;
     }
 
-    getHeight(): number {
+    public getHeight(): number {
         return this.height;
     }
 
-    getInitX(): number {
+    public getInitX(): number {
         return this.INIT_POSITION_X;
     }
 
-    getInitY(): number {
+    public getInitY(): number {
         return this.INIT_POSITION_Y;
     }
 }
-
 
 class ImageView {
     private readonly canvas: HTMLCanvasElement;
@@ -120,7 +119,7 @@ class ImageView {
     private readonly width: number;
     private readonly ctx: CanvasRenderingContext2D;
     private document: ImageDocument;
-    private readonly buttons: Array<{ text: string; x: number; y: number; width: number; height: number; action: () => void }>;
+    private buttons: Array<{ text: string; x: number; y: number; width: number; height: number; action: () => void }>;
 
     constructor(width: number, height: number, canvas: HTMLCanvasElement, documentImage: ImageDocument) {
         this.width = width;
@@ -129,6 +128,28 @@ class ImageView {
         this.ctx = this.canvas.getContext('2d')!;
         this.document = documentImage;
 
+        this.initButtons();
+
+        this.document.setOnImageLoaded(() => this.render());
+
+        this.setupCanvas();
+
+        this.render();
+    }
+
+    public getCanvas(): HTMLCanvasElement {
+        return this.canvas;
+    }
+
+    public getButtons(): Array<{ text: string; x: number; y: number; width: number; height: number; action: () => void }> {
+        return this.buttons;
+    }
+
+    public getCtx():CanvasRenderingContext2D {
+        return this.ctx;
+    }
+
+    private initButtons(): void {
         this.buttons = [
             {
                 text: 'Open File',
@@ -173,11 +194,6 @@ class ImageView {
                 },
             },
         ];
-
-        this.document.setOnImageLoaded(() => this.render());
-
-        this.setupCanvas();
-        this.setupEventListeners();
     }
 
     private setupCanvas(): void {
@@ -187,50 +203,6 @@ class ImageView {
             this.canvas.width = this.width;
             this.canvas.height = this.height;
             this.render();
-        });
-    }
-
-    private setupEventListeners(): void {
-        this.canvas.addEventListener('click', (e) => {
-            const rect = this.canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-
-            for (const button of this.buttons) {
-                if (
-                    x >= button.x &&
-                    x <= button.x + button.width &&
-                    y >= button.y &&
-                    y <= button.y + button.height
-                ) {
-                    button.action();
-                    break;
-                }
-            }
-        });
-
-        this.canvas.addEventListener('mousedown', (e) => {
-            const rect = this.canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-
-            if (e.button === 0) {
-                this.document.startDrawing(x, y);
-            }
-        });
-
-        this.canvas.addEventListener('mousemove', (e) => {
-            const rect = this.canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-
-            if (this.document.isDraw()) {
-                this.document.draw(x, y, this.ctx);
-            }
-        });
-
-        this.canvas.addEventListener('mouseup', () => {
-            this.document.endDrawing();
         });
     }
 
@@ -247,7 +219,7 @@ class ImageView {
         input.click();
     }
 
-    render(): void {
+    private render(): void {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
         this.drawCheckerboard();
@@ -287,7 +259,7 @@ class ImageView {
         }
     }
 
-    saveImage(name: string): void {
+    private saveImage(name: string): void {
         if (this.document.getImages().length > 0) {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d')!;
@@ -314,6 +286,61 @@ class ImageView {
     }
 }
 
+class ImageController {
+    private model: ImageDocument;
+    private view: ImageView;
+
+    constructor(model: ImageDocument, view: ImageView) {
+        this.model = model;
+        this.view = view;
+        this.setupEventListeners();
+    }
+
+    private setupEventListeners(): void {
+        this.view.getCanvas().addEventListener('click', (e) => {
+            const rect = this.view.getCanvas().getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            for (const button of this.view.getButtons()) {
+                if (
+                    x >= button.x &&
+                    x <= button.x + button.width &&
+                    y >= button.y &&
+                    y <= button.y + button.height
+                ) {
+                    button.action();
+                    break;
+                }
+            }
+        });
+
+        this.view.getCanvas().addEventListener('mousedown', (e) => {
+            const rect = this.view.getCanvas().getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            if (e.button === 0) {
+                this.model.startDrawing(x, y);
+            }
+        });
+
+        this.view.getCanvas().addEventListener('mousemove', (e) => {
+            const rect = this.view.getCanvas().getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            if (this.model.isDraw()) {
+                this.model.draw(x, y, this.view.getCtx());
+            }
+        });
+
+        this.view.getCanvas().addEventListener('mouseup', () => {
+            this.model.endDrawing();
+        });
+    }
+}
+
 function main(): void {
     const canvas = document.getElementById('canvas') as HTMLCanvasElement;
     const colorPicker = document.getElementById('color-picker') as HTMLInputElement;
@@ -321,8 +348,7 @@ function main(): void {
     if (canvas && colorPicker) {
         const imageDocument = new ImageDocument(800, 600);
         const view = new ImageView(window.innerWidth, window.innerHeight, canvas, imageDocument);
-
-        view.render();
+        new ImageController(imageDocument, view);
     } else {
         console.error("Canvas or color picker element not found!");
     }

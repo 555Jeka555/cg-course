@@ -1,3 +1,5 @@
+// TODO Распилить на файлы
+// TODO Сделать модель активной, а не пассивной
 class ImageDocument {
     private images: Array<{ image: HTMLImageElement; x: number; y: number }> = [];
     private isDragging: boolean = false;
@@ -68,9 +70,9 @@ class ImageDocument {
 }
 
 class ImageView {
-    private canvas: HTMLCanvasElement;
-    private width: number;
-    private height: number;
+    private readonly width: number;
+    private readonly height: number;
+    private readonly canvas: HTMLCanvasElement;
     private ctx: CanvasRenderingContext2D;
     private document: ImageDocument;
     private button: { x: number; y: number; width: number; height: number };
@@ -92,71 +94,15 @@ class ImageView {
         this.document.setOnImageLoaded(() => this.render());
 
         this.setupCanvas();
-        this.setupEventListeners();
+
+        this.render();
     }
 
-    private setupCanvas(): void {
-        this.canvas.width = this.width;
-        this.canvas.height = this.height;
-        window.addEventListener('resize', () => {
-            this.canvas.width = this.width;
-            this.canvas.height = this.height;
-            this.render();
-        });
+    public getCanvas(): HTMLCanvasElement {
+        return this.canvas;
     }
 
-    private setupEventListeners(): void {
-        this.canvas.addEventListener('click', (e) => {
-            const rect = this.canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-
-            if (
-                x >= this.button.x &&
-                x <= this.button.x + this.button.width &&
-                y >= this.button.y &&
-                y <= this.button.y + this.button.height
-            ) {
-                this.openFileDialog();
-            }
-        });
-
-        this.canvas.addEventListener('mousedown', (e) => {
-            const rect = this.canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            this.document.startDrag(x, y);
-        });
-
-        this.canvas.addEventListener('mousemove', (e) => {
-            if (this.document.isDrag()) {
-                const rect = this.canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                this.document.drag(x, y);
-                this.render();
-            }
-        });
-
-        this.canvas.addEventListener('mouseup', () => {
-            this.document.endDrag();
-        });
-    }
-
-    private openFileDialog(): void {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.png,.jpg,.jpeg,.bmp';
-        input.onchange = (e) => {
-            const file = (e.target as HTMLInputElement).files?.[0];
-            if (file) {
-                this.document.loadImage(file);
-            }
-        };
-        input.click();
-    }
-
-    render(): void {
+    public render(): void {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
         this.drawCheckerboard();
@@ -166,6 +112,38 @@ class ImageView {
         const images = this.document.getImages();
         images.forEach((img) => {
             this.ctx.drawImage(img.image, img.x, img.y);
+        });
+    }
+
+    // TODO Кнопку в html
+    public openFileDialog(x: number, y: number): void {
+        if (
+            x >= this.button.x &&
+            x <= this.button.x + this.button.width &&
+            y >= this.button.y &&
+            y <= this.button.y + this.button.height
+        ) {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.png,.jpg,.jpeg,.bmp';
+            input.onchange = (e) => {
+                const file = (e.target as HTMLInputElement).files?.[0];
+                if (file) {
+                    this.document.loadImage(file);
+                    this.render();
+                }
+            };
+            input.click();
+        }
+    }
+
+    private setupCanvas(): void {
+        this.canvas.width = this.width;
+        this.canvas.height = this.height;
+        window.addEventListener('resize', () => {
+            this.canvas.width = this.width;
+            this.canvas.height = this.height;
+            this.render();
         });
     }
 
@@ -195,13 +173,55 @@ class ImageView {
     }
 }
 
+class ImageController {
+    private model: ImageDocument;
+    private view: ImageView;
+
+    constructor(model: ImageDocument, view: ImageView) {
+        this.model = model;
+        this.view = view;
+        this.setupEventListeners();
+    }
+
+    private setupEventListeners(): void {
+        this.view.getCanvas().addEventListener('mousedown', (e) => {
+            const rect = this.view.getCanvas().getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            this.model.startDrag(x, y);
+        });
+
+        this.view.getCanvas().addEventListener('mousemove', (e) => {
+            if (this.model.isDrag()) {
+                const rect = this.view.getCanvas().getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                this.model.drag(x, y);
+                this.view.render();
+            }
+        });
+
+        this.view.getCanvas().addEventListener('mouseup', () => {
+            this.model.endDrag();
+        });
+
+        this.view.getCanvas().addEventListener('click', (e) => {
+            const rect = this.view.getCanvas().getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            this.view.openFileDialog(x, y);
+        });
+    }
+}
+
+
 function main(): void {
     const canvas = document.getElementById('canvas') as HTMLCanvasElement;
 
     if (canvas) {
         const document = new ImageDocument();
         const view = new ImageView(window.innerWidth, window.innerHeight, canvas, document);
-        view.render();
+        new ImageController(document, view);
     } else {
         console.error("Canvas element not found!");
     }
