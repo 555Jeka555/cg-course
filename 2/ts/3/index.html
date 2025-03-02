@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vite + TS</title>
+  <style>
+    /* Основной стиль для контейнера */
+    body {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      height: 100vh;
+      margin: 0;
+    }
+
+    /* Стиль для канваса */
+    #canvas {
+      border: 1px solid #000;
+    }
+
+    /* Контейнер для кнопок */
+    .button-container {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      padding: 20px;
+      width: 200px; /* ширина контейнера с кнопками */
+      z-index: 10;
+    }
+
+    /* Стиль для каждой кнопки */
+    .button-container button {
+      margin: 5px 0;
+      padding: 10px;
+      font-size: 14px;
+      cursor: pointer;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Холст для рисования -->
+<canvas id="canvas" width="800" height="600"></canvas>
+
+<!-- Контейнер с кнопками -->
+<div class="button-container">
+  <!-- Кнопки для каждого элемента (31 элемент) -->
+  <button id="button1">Element 1</button>
+  <button id="button2">Element 2</button>
+  <button id="button3">Element 3</button>
+  <button id="button4">Element 4</button>
+  <button id="button5">Element 5</button>
+  <button id="button6">Element 6</button>
+  <button id="button7">Element 7</button>
+  <button id="button8">Element 8</button>
+  <button id="button9">Element 9</button>
+  <button id="button10">Element 10</button>
+  <button id="button11">Element 11</button>
+  <button id="button12">Element 12</button>
+  <button id="button13">Element 13</button>
+  <button id="button14">Element 14</button>
+  <button id="button15">Element 15</button>
+  <button id="button16">Element 16</button>
+  <button id="button17">Element 17</button>
+  <button id="button18">Element 18</button>
+  <button id="button19">Element 19</button>
+  <button id="button20">Element 20</button>
+  <button id="button21">Element 21</button>
+  <button id="button22">Element 22</button>
+  <button id="button23">Element 23</button>
+  <button id="button24">Element 24</button>
+  <button id="button25">Element 25</button>
+  <button id="button26">Element 26</button>
+  <button id="button27">Element 27</button>
+  <button id="button28">Element 28</button>
+  <button id="button29">Element 29</button>
+  <button id="button30">Element 30</button>
+  <button id="button31">Element 31</button>
+</div>
+
+<script type="module" src="/src/main.ts"></script>
+
+</body>
+</html>
