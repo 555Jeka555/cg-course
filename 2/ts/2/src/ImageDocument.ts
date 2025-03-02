@@ -1,5 +1,7 @@
 import { IObservable, ImagePosition, Line, IObserver } from "./types.ts"
 
+// TODO Ластик добавить
+// TODO Рисовать на прозрачности
 export class ImageDocument implements IObservable {
     private readonly INIT_POSITION_X = window.innerWidth / 3 - 100;
     private readonly INIT_POSITION_Y = window.innerHeight / 3 - 100;
