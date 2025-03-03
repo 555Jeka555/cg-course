@@ -6,7 +6,7 @@ import { SparkPLug } from './SparkPLug';
 import { ConnectingRod } from './ConnectingRod';
 import { Crankshaft } from './Crankshaft';
 import { Crankcase } from './Crankcase';
-import { CoolingSystem } from './CoolingSystem'; // Импортируем класс системы охлаждения
+import { CoolingSystem } from './CoolingSystem';
 
 export class Engine {
     private pistons: Piston[] = [];
@@ -16,31 +16,38 @@ export class Engine {
     private connectingRods: ConnectingRod[] = [];
     private crankshaft: Crankshaft;
     private crankcase: Crankcase;
-    private coolingSystem: CoolingSystem; // Система охлаждения
+    private coolingSystems: CoolingSystem[] = [];
     private time: number = 0;
 
     constructor() {
-        const piston = new Piston(new THREE.Vector3(0, 0, 0));
-        this.pistons.push(piston);
+        const cylinderCount = 4
+        const cylinderSpacing = 1.5;
 
-        const intakeValve = new Valve(new THREE.Vector3(-0.5, 2.2, 0), 0x00ff00);
-        const exhaustValve = new Valve(new THREE.Vector3(0.5, 2.2, 0), 0xff0000);
-        this.valves.push(intakeValve, exhaustValve);
+        for (let i = 0; i < cylinderCount; i++) {
+            const zOffset = i * cylinderSpacing - (cylinderCount - 1) * cylinderSpacing / 2;
 
-        const flash = new Flash(new THREE.Vector3(0, 2, 0));
-        this.flashes.push(flash);
+            const piston = new Piston(new THREE.Vector3(0, 0, zOffset));
+            this.pistons.push(piston);
 
-        const sparkPlug = new SparkPLug(new THREE.Vector3(0, 2.3, 0));
-        this.sparkPlugs.push(sparkPlug);
+            const intakeValve = new Valve(new THREE.Vector3(-0.5, 2.2, zOffset), 0x00ff00);
+            const exhaustValve = new Valve(new THREE.Vector3(0.5, 2.2, zOffset), 0xff0000);
+            this.valves.push(intakeValve, exhaustValve);
 
-        const connectingRod = new ConnectingRod(new THREE.Vector3(0, -2, 0));
-        this.connectingRods.push(connectingRod);
+            const flash = new Flash(new THREE.Vector3(0, 2, zOffset));
+            this.flashes.push(flash);
+
+            const sparkPlug = new SparkPLug(new THREE.Vector3(0, 2.3, zOffset));
+            this.sparkPlugs.push(sparkPlug);
+
+            const connectingRod = new ConnectingRod(new THREE.Vector3(0, 0, zOffset));
+            this.connectingRods.push(connectingRod);
+
+            const coolingSystem = new CoolingSystem(new THREE.Vector3(0, 0, zOffset));
+            this.coolingSystems.push(coolingSystem);
+        }
 
         this.crankshaft = new Crankshaft(new THREE.Vector3(0, -2, 0));
-
         this.crankcase = new Crankcase(new THREE.Vector3(0, 0, 0));
-
-        this.coolingSystem = new CoolingSystem(new THREE.Vector3(0, 0, 0));
     }
 
     addToScene(scene: THREE.Scene): void {
@@ -49,9 +56,9 @@ export class Engine {
         this.sparkPlugs.forEach(sparkPlug => scene.add(sparkPlug.mesh));
         this.flashes.forEach(flash => scene.add(flash.mesh));
         this.connectingRods.forEach(rod => scene.add(rod.mesh));
+        this.coolingSystems.forEach(coolingSystem => scene.add(coolingSystem.mesh)); // Добавляем все системы охлаждения
         scene.add(this.crankshaft.mesh);
         scene.add(this.crankcase.mesh);
-        scene.add(this.coolingSystem.mesh);
     }
 
     update(): void {
@@ -65,7 +72,7 @@ export class Engine {
             const pistonY = 0.5;
             piston.move(pistonMoveY + pistonY);
 
-            const rodAngle = Math.sin(this.time + index * Math.PI / 2) * Math.PI / 6;
+            const rodAngle = Math.sin(this.time + index * Math.PI / 2) * 0.2;
 
             this.connectingRods[index].update(piston.mesh.position, rodAngle);
         });

@@ -4,7 +4,7 @@ export class Crankshaft {
     public mesh: THREE.Mesh;
 
     constructor(position: THREE.Vector3) {
-        const geometry = new THREE.CylinderGeometry(0.5, 0.5, 4, 32);
+        const geometry = new THREE.CylinderGeometry(0.5, 0.5, 5, 32);
         const material = new THREE.MeshBasicMaterial({ color: 0x555555 });
         this.mesh = new THREE.Mesh(geometry, material);
 

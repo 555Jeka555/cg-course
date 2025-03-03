@@ -21,9 +21,9 @@ export class CoolingSystem {
         );
 
         const material = new THREE.MeshBasicMaterial({
-            color: 0x00aaff, // Голубой цвет для воды
+            color: 0x00aaff,
             transparent: true,
-            opacity: 0.7 // Полупрозрачный материал
+            opacity: 0.7
         });
 
         this.mesh = new THREE.Mesh(tubeGeometry, material);

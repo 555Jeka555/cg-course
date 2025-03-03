@@ -13,8 +13,4 @@ export class Valve {
     open(amount: number): void {
         this.mesh.position.y += amount;
     }
-
-    close(amount: number): void {
-        this.mesh.position.y -= amount;
-    }
 }
