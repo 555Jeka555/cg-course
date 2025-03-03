@@ -1,40 +1,55 @@
 import * as THREE from 'three';
-import { cardioid } from './Cardioid.ts'
-import { xAxis, yAxis, ticksX, ticksY } from './Map.ts'
+import { Cardioid } from './Cardioid';
+import { Axis } from './Axis';
 
-const scene = new THREE.Scene();
+export class SceneManager {
+    private readonly scene: THREE.Scene;
+    private readonly camera: THREE.PerspectiveCamera;
+    private renderer: THREE.WebGLRenderer;
+    private cardioid: Cardioid;
+    private axis: Axis;
 
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.z = 15;
+    constructor() {
+        this.scene = new THREE.Scene();
+        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        this.camera.position.z = 15;
 
-const renderer = new THREE.WebGLRenderer();
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
+        this.renderer = new THREE.WebGLRenderer();
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(this.renderer.domElement);
 
-scene.add(xAxis);
-scene.add(yAxis);
+        this.cardioid = new Cardioid();
+        this.axis = new Axis();
 
-ticksX.forEach(tick => {
-    scene.add(tick);
-})
+        this.addObjectsToScene();
 
-ticksY.forEach(tick => {
-    scene.add(tick);
-})
+        this.animate();
+        this.setupResizeListener();
+    }
 
-scene.add(cardioid);
+    private addObjectsToScene(): void {
+        this.scene.add(this.axis.xAxis);
+        this.scene.add(this.axis.yAxis);
+        this.axis.ticksX.forEach(tick => this.scene.add(tick));
+        this.axis.ticksY.forEach(tick => this.scene.add(tick));
 
-function animate() {
-    requestAnimationFrame(animate);
-    renderer.render(scene, camera);
+        this.scene.add(this.cardioid.mesh);
+    }
+
+    private animate(): void {
+        requestAnimationFrame(() => this.animate());
+        this.renderer.render(this.scene, this.camera);
+    }
+
+    private setupResizeListener(): void {
+        window.addEventListener('resize', () => {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            this.renderer.setSize(width, height);
+            this.camera.aspect = width / height;
+            this.camera.updateProjectionMatrix();
+        });
+    }
 }
 
-animate();
-
-window.addEventListener('resize', () => {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    renderer.setSize(width, height);
-    camera.aspect = width / height;
-    camera.updateProjectionMatrix();
-});
+const sceneManager = new SceneManager();
