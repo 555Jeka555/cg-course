@@ -56,7 +56,7 @@ export class Engine {
         this.sparkPlugs.forEach(sparkPlug => scene.add(sparkPlug.mesh));
         this.flashes.forEach(flash => scene.add(flash.mesh));
         this.connectingRods.forEach(rod => scene.add(rod.mesh));
-        this.coolingSystems.forEach(coolingSystem => scene.add(coolingSystem.mesh)); // Добавляем все системы охлаждения
+        this.coolingSystems.forEach(coolingSystem => scene.add(coolingSystem.mesh));
         scene.add(this.crankshaft.mesh);
         scene.add(this.crankcase.mesh);
     }

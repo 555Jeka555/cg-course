@@ -9,6 +9,7 @@ export class SceneManager {
 
     constructor() {
         this.scene = new THREE.Scene();
+        // TODO почему камера не возращается обратно к исходному результату
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         this.camera.position.set(3, 5, 6);
         this.camera.lookAt(0, 0, 0);
@@ -20,7 +21,7 @@ export class SceneManager {
         this.engine = new Engine();
         this.engine.addToScene(this.scene);
 
-        this.setupControls(); // Настройка слайдеров
+        this.setupControls();
         this.animate();
         this.setupResizeListener();
     }
@@ -57,7 +58,6 @@ export class SceneManager {
             zValue.textContent = zSlider.value;
         });
 
-        // Обработчики событий для слайдеров поворота
         rxSlider.addEventListener('input', () => {
             const angle = THREE.MathUtils.degToRad(parseFloat(rxSlider.value));
             this.camera.rotation.x = angle;

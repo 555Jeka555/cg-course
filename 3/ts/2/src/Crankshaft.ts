@@ -13,6 +13,6 @@ export class Crankshaft {
     }
 
     update(angle: number): void {
-        this.mesh.rotation.y = angle; // Вращаем вокруг оси Z
+        this.mesh.rotation.y = angle;
     }
 }
