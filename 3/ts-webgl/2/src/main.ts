@@ -1,16 +1,9 @@
-import {Butterflies} from './Butterflies/Butterflies'
-import {Clouds} from './Clouds/Clouds'
-import {Grass} from './Grass/Grass'
 import './index.css'
-import {Meadow} from './Meadow/Meadow'
-import {Moon} from './Moon/Moon'
-import {Stars} from './Stars/Stars'
-import {Sun} from './Sun/Sun'
 import {createShaderProgram, computeOrthoMatrix, getWorldSize} from './Utils.ts'
 import {Crankcase} from "./Crankcase";
 import {Piston} from "./Piston";
 import {ConnectingRod} from "./ConnectingRod";
-import { mat4 } from 'gl-matrix';
+// import { mat4 } from 'gl-matrix';
 import {Crankshaft} from "./Crankshaft";
 import {Valve} from "./Valve";
 
