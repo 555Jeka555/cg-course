@@ -17,7 +17,6 @@ type Color = {
 
 type Renderable = {
 	render: () => void,
-	update: () => void,
 }
 
 export type {
