@@ -8,7 +8,7 @@ class App {
 	private readonly gl: WebGLRenderingContext
 	private readonly program: WebGLProgram
 	private cardioid: Cardioid
-	private axes: Axis
+	private axis: Axis
 	private orthoMatrix: Float32Array
 
 	constructor() {
@@ -27,7 +27,7 @@ class App {
 		gl.useProgram(this.program)
 
 		this.cardioid = new Cardioid(gl, this.program)
-		this.axes = new Axis(gl, this.program)
+		this.axis = new Axis(gl, this.program)
 
 		this.orthoMatrix = computeOrthoMatrix(
 			this.canvas.width,
@@ -48,7 +48,7 @@ class App {
 		gl.clearColor(0, 0, 0, 1)
 		gl.clear(gl.COLOR_BUFFER_BIT)
 
-		this.axes.render()
+		this.axis.render()
 		this.cardioid.render()
 	}
 
