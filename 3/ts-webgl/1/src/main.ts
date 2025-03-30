@@ -36,7 +36,6 @@ class App {
 		this.setupEventListeners()
 	}
 
-
 	render = () => {
 		requestAnimationFrame(this.render)
 		const gl = this.gl

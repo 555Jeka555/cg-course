@@ -1,9 +1,9 @@
 export class Axis {
-	private axesBuffer: WebGLBuffer | null = null
+	private axisBuffer: WebGLBuffer | null = null
 	private ticksBuffer: WebGLBuffer | null = null
 	private arrowBuffer: WebGLBuffer | null = null
 
-	private axesVertexCount = 0
+	private axisVertexCount = 0
 	private ticksVertexCount = 0
 	private arrowVertexCount = 0
 
@@ -20,7 +20,7 @@ export class Axis {
 		const colorLocation = gl.getUniformLocation(this.program, 'u_color')
 
 		gl.uniform4f(colorLocation, 1, 0, 0, 1)
-		gl.bindBuffer(gl.ARRAY_BUFFER, this.axesBuffer)
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.axisBuffer)
 		gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0)
 		gl.enableVertexAttribArray(positionLocation)
 		gl.drawArrays(gl.LINES, 0, 2)
@@ -44,14 +44,14 @@ export class Axis {
 	private initBuffers() {
 		const gl = this.gl
 
-		const axesVertices = new Float32Array([
+		const axisVertices = new Float32Array([
 			-5, 0, 5, 0,
 			0, -10, 0, 10,
 		])
-		this.axesVertexCount = axesVertices.length / 2
-		this.axesBuffer = gl.createBuffer()
-		gl.bindBuffer(gl.ARRAY_BUFFER, this.axesBuffer)
-		gl.bufferData(gl.ARRAY_BUFFER, axesVertices, gl.STATIC_DRAW)
+		this.axisVertexCount = axisVertices.length / 2
+		this.axisBuffer = gl.createBuffer()
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.axisBuffer)
+		gl.bufferData(gl.ARRAY_BUFFER, axisVertices, gl.STATIC_DRAW)
 
 		const tickSize = 0.2
 		const xTicks: number[] = []

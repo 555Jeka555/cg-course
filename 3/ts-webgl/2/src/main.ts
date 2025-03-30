@@ -59,20 +59,6 @@ class App {
 		this.rightValve.render()
 	}
 
-	private computeSkyColor(sunHeight: number) {
-		const minColor = {r: 0.05, g: 0.05, b: 0.2}
-
-		if (sunHeight > 0) {
-			return {
-				r: minColor.r + (0.53 - minColor.r) * sunHeight,
-				g: minColor.g + (0.81 - minColor.g) * sunHeight,
-				b: minColor.b + (0.98 - minColor.b) * sunHeight,
-			}
-		}
-
-		return minColor
-	}
-
 	private resizeCanvas = () => {
 		this.canvas.width = window.innerWidth
 		this.canvas.height = window.innerHeight
