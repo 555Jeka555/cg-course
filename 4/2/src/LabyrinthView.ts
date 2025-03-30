@@ -17,7 +17,7 @@ export class LabyrinthView {
     draw(countCubeIndex: number, projectionMatrix: mat4, viewMatrix: mat4) {
         for (let z = 0; z < this.labyrinth.size; z++) {
             for (let x = 0; x < this.labyrinth.size; x++) {
-                if (this.labyrinth.grid[z]![x] === 1) {
+                if (this.labyrinth.map[z]![x] === 1) {
                     const mvpMatrix = this.calcFinalMatrix(x, z, projectionMatrix, viewMatrix)
                     this.gl.uniformMatrix4fv(this.uMatrixLocation, false, mvpMatrix)
                     this.gl.uniform4fv(this.uColorLocation, [(z / this.labyrinth.size), (x / this.labyrinth.size), 0.3, 1])

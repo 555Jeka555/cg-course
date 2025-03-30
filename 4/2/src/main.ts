@@ -75,13 +75,19 @@ class App {
         if (this.keysUp['ArrowRight']) {
             this.player.rotate(deltaTime)
         }
+        if (this.keysUp['x']) {
+            this.player.setPitch(deltaTime * this.player.rotationSpeed)
+        }
+        if (this.keysUp['z']) {
+            this.player.setPitch(-(deltaTime * this.player.rotationSpeed))
+        }
     }
 
     private initCubeBuffers() {
         const gl = this.gl
         const vertices = new Float32Array([
-            0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0,
-            0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1,
+            0, 0, 0,   1, 0, 0,   1, 1, 0,   0, 1, 0,
+            0, 0, 1,   1, 0, 1,   1, 1, 1,   0, 1, 1,
         ])
         const indices = new Uint16Array([
             4, 5, 6, 4, 6, 7,  // Передняя грань
@@ -141,17 +147,23 @@ class App {
     }
 
     private calcViewMatrix() {
-        const viewMatrix = mat4.create()
-        const eye = vec3.fromValues(this.player.position[0], this.player.position[1], this.player.position[2])
-        const center = vec3.fromValues(
-            eye[0] + Math.cos(this.player.direction),
-            eye[1],
-            eye[2] + Math.sin(this.player.direction),
-        )
-        const up = vec3.fromValues(0, 1, 0)
-        mat4.lookAt(viewMatrix, eye, center, up)
+        const viewMatrix = mat4.create();
+        const eye = vec3.fromValues(
+            this.player.position[0],
+            this.player.position[1],
+            this.player.position[2]
+        );
 
-        return viewMatrix
+        const center = vec3.fromValues(
+            eye[0] + Math.cos(this.player.direction) * Math.cos(this.player.pitch),
+            eye[1] + Math.sin(this.player.pitch),
+            eye[2] + Math.sin(this.player.direction) * Math.cos(this.player.pitch)
+        );
+
+        const up = vec3.fromValues(0, 1, 0);
+        mat4.lookAt(viewMatrix, eye, center, up);
+
+        return viewMatrix;
     }
 }
 
