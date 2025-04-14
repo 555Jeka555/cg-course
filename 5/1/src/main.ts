@@ -34,23 +34,12 @@ class App {
 
         const matrixLoc = gl.getUniformLocation(this.program, 'u_matrix')
         const colorLoc = gl.getUniformLocation(this.program, 'u_color')
+        const textureLoc = gl.getUniformLocation(this.program, 'u_texture');
         if (!matrixLoc || !colorLoc) throw new Error('Не удалось получить uniform-переменные')
-
-        const brickWallTexturePromise = loadTexture(this.gl, '/textures/brick.jpg')
-
-        let textures = new Map<WALL_TYPE, WebGLTexture>
-        Promise.all([brickWallTexturePromise])
-            .then(([brickWallTexture]) => {
-                textures[WALL_TYPE.BRICK] = brickWallTexture
-                console.log("brickWallTexture", brickWallTexture)
-            })
-
-        console.log("textures", textures)
 
         this.labyrinth = new Labyrinth()
         this.player = new Player()
-        this.mazeView = new LabyrinthView(this.labyrinth, this.gl, matrixLoc, colorLoc, textures, this.program)
-        this.initCubeBuffers()
+        this.mazeView = new LabyrinthView(this.labyrinth, this.gl, this.program, matrixLoc, colorLoc, textureLoc)
         this.setupEventListeners()
     }
 
@@ -70,7 +59,7 @@ class App {
 
         const projectionMatrix = this.calcProjectionMatrix()
         const viewMatrix = this.calcViewMatrix()
-        this.mazeView.draw(this.countCubeIndex, projectionMatrix, viewMatrix)
+        this.mazeView.render(this.countCubeIndex, projectionMatrix, viewMatrix)
     }
 
     private updatePlayer(deltaTime: number) {
@@ -92,38 +81,6 @@ class App {
         if (this.keysUp['z']) {
             this.player.setPitch(-(deltaTime * this.player.rotationSpeed))
         }
-    }
-
-    private initCubeBuffers() {
-        const gl = this.gl
-        const vertices = new Float32Array([
-            0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0,
-            0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1,
-        ])
-        const indices = new Uint16Array([
-            4, 5, 6, 4, 6, 7,  // Передняя грань
-            0, 2, 1, 0, 3, 2,  // Задняя грань
-            0, 7, 3, 0, 4, 7,  // Левая грань
-            1, 2, 6, 1, 6, 5,  // Правая грань
-            3, 6, 2, 3, 7, 6,  // Верхняя грань
-            0, 1, 5, 0, 5, 4,  // Нижняя грань
-        ])
-        this.countCubeIndex = indices.length
-
-        this.cubeVertexBuffer = gl.createBuffer()!
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.cubeVertexBuffer)
-        gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW)
-
-        this.cubeIndexBuffer = gl.createBuffer()!
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.cubeIndexBuffer)
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW)
-
-        const aPositionLocation = gl.getAttribLocation(this.program, 'a_position')
-        if (aPositionLocation === -1) {
-            throw new Error('Атрибут "a_position" не найден')
-        }
-        gl.enableVertexAttribArray(aPositionLocation)
-        gl.vertexAttribPointer(aPositionLocation, 3, gl.FLOAT, false, 0, 0)
     }
 
     private setupEventListeners() {
