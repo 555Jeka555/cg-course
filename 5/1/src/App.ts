@@ -49,7 +49,6 @@ class App {
         this.lastTime = time;
         requestAnimationFrame(this.render);
 
-
         this.playerController.updatePlayer(deltaTime);
         this.backroundRenderer.Render()
         this.mazeRenderer.Render(this.player);

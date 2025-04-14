@@ -3,6 +3,16 @@ import {Maze} from "./Maze.ts";
 import {Player} from "./Player.ts";
 import {loadTexture} from "./WebGLUtils.ts";
 
+export enum WALL_TYPE {
+    EMPTY = 0,
+    BRICK = 1,
+    CONCRETE = 2,
+    BAD = 3,
+    STONE = 4,
+    BROWN = 5,
+    MOULD = 6
+}
+
 class MazeRenderer {
     private maze: Maze;
 
@@ -18,7 +28,7 @@ class MazeRenderer {
     private readonly program: WebGLProgram;
     private readonly canvas: HTMLCanvasElement;
 
-    private wallTexture: WebGLTexture;
+    private textures = new Map<WALL_TYPE, WebGLTexture>();
     private isTextureLoaded = false;
 
     constructor(maze: Maze, canvas: HTMLCanvasElement, gl: WebGLRenderingContext, program: WebGLProgram) {
@@ -39,12 +49,32 @@ class MazeRenderer {
         this.uColorLocation = colorLoc;
         this.uTextureLocation = textureLoc;
 
-        // Загрузка текстуры
-        this.wallTexture = loadTexture(this.gl, 'brick.jpg', () => {
+        this.loadTextures();
+        this.initCubeBuffers();
+    }
+
+    private loadTextures() {
+        const loadPromises = [
+            this.loadTexture(WALL_TYPE.BRICK, 'brick.jpg'),
+            this.loadTexture(WALL_TYPE.CONCRETE, 'concrete.jpg'),
+            this.loadTexture(WALL_TYPE.BAD, 'nightwall.jpg'),
+            this.loadTexture(WALL_TYPE.STONE, 'stone.jpg'),
+            this.loadTexture(WALL_TYPE.BROWN, 'brown.jpg'),
+            this.loadTexture(WALL_TYPE.MOULD, 'mould.jpg')
+        ];
+
+        Promise.all(loadPromises).then(() => {
             this.isTextureLoaded = true;
         });
+    }
 
-        this.initCubeBuffers();
+    private loadTexture(type: WALL_TYPE, url: string): Promise<void> {
+        return new Promise((resolve) => {
+            const texture = loadTexture(this.gl, url, () => {
+                this.textures.set(type, texture);
+                resolve();
+            });
+        });
     }
 
     private initCubeBuffers() {
@@ -52,17 +82,28 @@ class MazeRenderer {
 
         // Вершины куба с текстурными координатами
         const vertices = new Float32Array([    // Передняя грань (Z = 0)
-            0, 0, 0, 0, 0,    1, 0, 0, 1, 0,
-            1, 1, 0, 1, 1,    0, 1, 0, 0, 1,
+            0, 0, 0, 0, 0,
+            1, 0, 0, 1, 0,
+            1, 1, 0, 1, 1,
+            0, 1, 0, 0, 1,
+
             // Задняя грань (Z = 1)
-            0, 0, 1, 1, 0,    1, 0, 1, 0, 0,
-            1, 1, 1, 0, 1,    0, 1, 1, 1, 1,
+            0, 0, 1, 1, 0,
+            1, 0, 1, 0, 0,
+            1, 1, 1, 0, 1,
+            0, 1, 1, 1, 1,
+
             // Левая грань (X = 0)
-            0, 0, 0, 0, 0,    0, 0, 1, 1, 0,
-            0, 1, 1, 1, 1,    0, 1, 0, 0, 1,
+            0, 0, 0, 0, 0,
+            0, 0, 1, 1, 0,
+            0, 1, 1, 1, 1,
+            0, 1, 0, 0, 1,
+
             // Правая грань (X = 1)
-            1, 0, 0, 1, 0,    1, 0, 1, 0, 0,
-            1, 1, 1, 0, 1,    1, 1, 0, 1, 1,
+            1, 0, 0, 1, 0,
+            1, 0, 1, 0, 0,
+            1, 1, 1, 0, 1,
+            1, 1, 0, 1, 1,
         ]);
 
         const indices = new Uint16Array([
@@ -87,24 +128,20 @@ class MazeRenderer {
 
         this.cubeIndexCount = indices.length;
 
-        // Создаем и заполняем буфер вершин
         this.cubeVertexBuffer = gl.createBuffer()!;
         gl.bindBuffer(gl.ARRAY_BUFFER, this.cubeVertexBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
 
-        // Создаем и заполняем индексный буфер
         this.cubeIndexBuffer = gl.createBuffer()!;
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.cubeIndexBuffer);
         gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
 
-        // Настройка атрибутов
         const positionLocation = gl.getAttribLocation(this.program, 'a_position');
         const texcoordLocation = gl.getAttribLocation(this.program, 'a_texcoord');
 
         gl.enableVertexAttribArray(positionLocation);
         gl.enableVertexAttribArray(texcoordLocation);
 
-        // Шаг в байтах между вершинами (5 значений * 4 байта)
         const stride = 5 * Float32Array.BYTES_PER_ELEMENT;
 
         // Настройка атрибута позиций
@@ -137,18 +174,22 @@ class MazeRenderer {
         const viewMatrix = this.calcViewMatrix(player);
 
         gl.useProgram(this.program);
-
-        // Привязка текстуры
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, this.wallTexture);
-        gl.uniform1i(this.uTextureLocation, 0);
-
-        // Привязка индексного буфера
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.cubeIndexBuffer);
 
         for (let z = 0; z < this.maze.size; z++) {
             for (let x = 0; x < this.maze.size; x++) {
-                if (this.maze.grid[z]![x] === 1) {
+                const wallType = this.maze.grid[z][x];
+
+                if (wallType !== WALL_TYPE.EMPTY) {
+                    // Получаем текстуру для текущего типа стены
+                    const texture = this.textures.get(wallType);
+                    if (texture) {
+                        gl.activeTexture(gl.TEXTURE0);
+                        gl.bindTexture(gl.TEXTURE_2D, texture);
+                        gl.uniform1i(this.uTextureLocation, 0);
+                    }
+
+                    // Расчет расстояния для затемнения
                     const dx = x - player.position[0];
                     const dz = z - player.position[2];
                     const distance = Math.sqrt(dx*dx + dz*dz);

@@ -56,7 +56,6 @@ class Player {
         this.updatePosition(maze, nextX, nextZ)
     }
 
-
     rotateTo(deltaTime: number, direction: Direction) {
         if (direction == Direction.Backward || direction == Direction.Forward) {
             return
