@@ -1,4 +1,4 @@
-import {Maze} from "./Maze.ts";
+import {Labyrinth} from "./Labyrinth.ts";
 
 class BackroundRenderer {
     private readonly gl: WebGLRenderingContext
@@ -6,7 +6,7 @@ class BackroundRenderer {
 
     private readonly canvas: HTMLCanvasElement
 
-    constructor(maze: Maze, canvas: HTMLCanvasElement, gl: WebGLRenderingContext, program: WebGLProgram) {
+    constructor(labyrinth: Labyrinth, canvas: HTMLCanvasElement, gl: WebGLRenderingContext, program: WebGLProgram) {
         this.gl = gl
         this.program = program
         this.canvas = canvas

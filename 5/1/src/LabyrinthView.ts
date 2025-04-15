@@ -1,5 +1,5 @@
 import {mat4, vec3} from "gl-matrix";
-import {Maze} from "./Maze.ts";
+import {Labyrinth} from "./Labyrinth.ts";
 import {Player} from "./Player.ts";
 import {loadTexture} from "./WebGLUtils.ts";
 
@@ -7,14 +7,14 @@ export enum WALL_TYPE {
     EMPTY = 0,
     BRICK = 1,
     CONCRETE = 2,
-    BAD = 3,
+    NIGHT_WALL = 3,
     STONE = 4,
     BROWN = 5,
     MOULD = 6
 }
 
-class MazeRenderer {
-    private maze: Maze;
+class LabyrinthView {
+    private labyrinth: Labyrinth;
 
     private cubeVertexBuffer: WebGLBuffer | null = null;
     private cubeIndexBuffer: WebGLBuffer | null = null;
@@ -31,8 +31,8 @@ class MazeRenderer {
     private textures = new Map<WALL_TYPE, WebGLTexture>();
     private isTextureLoaded = false;
 
-    constructor(maze: Maze, canvas: HTMLCanvasElement, gl: WebGLRenderingContext, program: WebGLProgram) {
-        this.maze = maze;
+    constructor(labyrinth: Labyrinth, canvas: HTMLCanvasElement, gl: WebGLRenderingContext, program: WebGLProgram) {
+        this.labyrinth = labyrinth;
         this.gl = gl;
         this.program = program;
         this.canvas = canvas;
@@ -57,7 +57,7 @@ class MazeRenderer {
         const loadPromises = [
             this.loadTexture(WALL_TYPE.BRICK, 'brick.jpg'),
             this.loadTexture(WALL_TYPE.CONCRETE, 'concrete.jpg'),
-            this.loadTexture(WALL_TYPE.BAD, 'nightwall.jpg'),
+            this.loadTexture(WALL_TYPE.NIGHT_WALL, 'nightwall.jpg'),
             this.loadTexture(WALL_TYPE.STONE, 'stone.jpg'),
             this.loadTexture(WALL_TYPE.BROWN, 'brown.jpg'),
             this.loadTexture(WALL_TYPE.MOULD, 'mould.jpg')
@@ -176,9 +176,9 @@ class MazeRenderer {
         gl.useProgram(this.program);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.cubeIndexBuffer);
 
-        for (let z = 0; z < this.maze.size; z++) {
-            for (let x = 0; x < this.maze.size; x++) {
-                const wallType = this.maze.grid[z][x];
+        for (let z = 0; z < this.labyrinth.size; z++) {
+            for (let x = 0; x < this.labyrinth.size; x++) {
+                const wallType = this.labyrinth.map[z][x];
 
                 if (wallType !== WALL_TYPE.EMPTY) {
                     // Получаем текстуру для текущего типа стены
@@ -193,9 +193,9 @@ class MazeRenderer {
                     const dx = x - player.position[0];
                     const dz = z - player.position[2];
                     const distance = Math.sqrt(dx*dx + dz*dz);
-                    const maxDistance = this.maze.size * Math.sqrt(2);
+                    const maxDistance = this.labyrinth.size * Math.sqrt(2);
                     const normalizedDistance = Math.min(distance / maxDistance, 1);
-                    const darkenFactor = 1.0 - Math.pow(normalizedDistance, 0.3);
+                    const darkenFactor = 1.0 - Math.pow(normalizedDistance, 0.4);
 
                     const color = [1.0, 1.0, 1.0, darkenFactor];
                     const mvpMatrix = this.calcFinalMatrix(x, z, projectionMatrix, viewMatrix);
@@ -251,4 +251,4 @@ class MazeRenderer {
     }
 }
 
-export { MazeRenderer };
+export { LabyrinthView };

@@ -1,7 +1,7 @@
 import {createShaderProgram} from './WebGLUtils'
 import {Player} from './Player'
-import {Maze} from './Maze'
-import {MazeRenderer} from './MazeRenderer.ts'
+import {Labyrinth} from './Labyrinth.ts'
+import {LabyrinthView} from './LabyrinthView.ts'
 import {PlayerController} from "./PlayerController.ts";
 import {BackroundRenderer} from "./BackroundRenderer.ts";
 
@@ -9,8 +9,8 @@ class App {
     private readonly canvas: HTMLCanvasElement
     private readonly gl: WebGLRenderingContext
     private readonly program: WebGLProgram
-    private readonly maze: Maze
-    private readonly mazeRenderer: MazeRenderer
+    private readonly labyrinth: Labyrinth
+    private readonly mazeRenderer: LabyrinthView
     private readonly backroundRenderer: BackroundRenderer
     private player: Player
     private playerController: PlayerController
@@ -33,11 +33,11 @@ class App {
         this.program = createShaderProgram(gl)
         gl.useProgram(this.program)
 
-        this.maze = new Maze()
+        this.labyrinth = new Labyrinth()
         this.player = new Player()
-        this.mazeRenderer = new MazeRenderer(this.maze, this.canvas,  this.gl, this.program)
-        this.backroundRenderer = new BackroundRenderer(this.maze, this.canvas,  this.gl, this.program)
-        this.playerController = new PlayerController(this.player, this.maze)
+        this.mazeRenderer = new LabyrinthView(this.labyrinth, this.canvas,  this.gl, this.program)
+        this.backroundRenderer = new BackroundRenderer(this.labyrinth, this.canvas,  this.gl, this.program)
+        this.playerController = new PlayerController(this.player, this.labyrinth)
     }
 
     run() {

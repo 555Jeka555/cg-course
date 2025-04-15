@@ -1,5 +1,5 @@
 import {vec3} from 'gl-matrix'
-import {Maze} from './Maze'
+import {Labyrinth} from './Labyrinth.ts'
 
 enum Direction {
     Left,
@@ -22,7 +22,7 @@ class Player {
         this.rotationSpeed = 2
     }
 
-    moveTo(maze: Maze, deltaTime: number, direction: Direction) {
+    moveTo(labyrinth: Labyrinth, deltaTime: number, direction: Direction) {
         let xScale = 1
         let zScale = 1
 
@@ -53,7 +53,7 @@ class Player {
 
         const nextX = this.position[0] + xDiff * xScale
         const nextZ = this.position[2] + zDiff * zScale
-        this.updatePosition(maze, nextX, nextZ)
+        this.updatePosition(labyrinth, nextX, nextZ)
     }
 
     rotateTo(deltaTime: number, direction: Direction) {
@@ -67,15 +67,15 @@ class Player {
         this.direction += this.rotationSpeed * deltaTime * scale
     }
 
-    private updatePosition(maze: Maze, nextX: number, nextZ: number) {
-        if (!maze.isWall(nextX, nextZ)) {
+    private updatePosition(labyrinth: Labyrinth, nextX: number, nextZ: number) {
+        if (!labyrinth.isWall(nextX, nextZ)) {
             this.position[0] = nextX
             this.position[2] = nextZ
         }
-        if (!maze.isWall(this.position[0], nextZ)) {
+        if (!labyrinth.isWall(this.position[0], nextZ)) {
             this.position[2] = nextZ
         }
-        if (!maze.isWall(nextX,  this.position[2])) {
+        if (!labyrinth.isWall(nextX,  this.position[2])) {
             this.position[0] = nextX
         }
     }
