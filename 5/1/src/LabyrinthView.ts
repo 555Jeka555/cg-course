@@ -181,7 +181,6 @@ class LabyrinthView {
                 const wallType = this.labyrinth.map[z][x];
 
                 if (wallType !== WALL_TYPE.EMPTY) {
-                    // Получаем текстуру для текущего типа стены
                     const texture = this.textures.get(wallType);
                     if (texture) {
                         gl.activeTexture(gl.TEXTURE0);
@@ -189,7 +188,6 @@ class LabyrinthView {
                         gl.uniform1i(this.uTextureLocation, 0);
                     }
 
-                    // Расчет расстояния для затемнения
                     const dx = x - player.position[0];
                     const dz = z - player.position[2];
                     const distance = Math.sqrt(dx*dx + dz*dz);
