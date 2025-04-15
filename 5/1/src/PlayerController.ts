@@ -1,40 +1,61 @@
 import {KeyListener} from "./KeyListener.ts";
 import {Direction, Player} from "./Player.ts";
 import {Labyrinth} from "./Labyrinth.ts";
-import {MouseListener} from "./MouseListener.ts";
 
 class PlayerController {
+    private readonly canvas: HTMLCanvasElement
+    private readonly gl: WebGLRenderingContext
     private keyListener: KeyListener;
-    private mouseListener: MouseListener;
     private player: Player;
     private labyrinth: Labyrinth;
-    private sensitivity: number = 0.001;
+    private keysUp: { [key: string]: boolean } = {}
 
-    constructor(player: Player, labyrinth: Labyrinth) {
+    constructor(
+        canvas: HTMLCanvasElement,
+        gl: WebGLRenderingContext,
+        player: Player,
+        labyrinth: Labyrinth
+    ) {
+        this.canvas = canvas
         this.keyListener = new KeyListener();
-        this.mouseListener = new MouseListener(
-            (movementX: number) => {
-                let direction = Direction.Right
-                if (movementX < 0) {
-                    movementX = -movementX
-                    direction = Direction.Left
-                }
-                this.player.rotateTo(movementX * this.sensitivity, direction);
-            }
-        );
         this.player = player;
         this.labyrinth = labyrinth;
+        this.setupEventListeners()
+    }
+
+    private resizeCanvas = () => {
+        this.canvas.width = window.innerWidth
+        this.canvas.height = window.innerHeight
+        this.gl.viewport(0, 0, window.innerWidth, window.innerHeight)
+    }
+
+    private setupEventListeners() {
+        window.addEventListener('resize', this.resizeCanvas)
+        window.addEventListener('keydown', this.handleKeyDown)
+        window.addEventListener('keyup', this.handleKeyUp)
     }
 
     public updatePlayer(deltaTime: number) {
-        // Движение (клавиатура)
-        if (this.keyListener.IsDown('w')) this.player.moveTo(this.labyrinth, deltaTime, Direction.Forward);
-        if (this.keyListener.IsDown('s')) this.player.moveTo(this.labyrinth, deltaTime, Direction.Backward);
-        if (this.keyListener.IsDown('a')) this.player.moveTo(this.labyrinth, deltaTime, Direction.Left);
-        if (this.keyListener.IsDown('d')) this.player.moveTo(this.labyrinth, deltaTime, Direction.Right);
-        if (this.keyListener.IsDown('ArrowLeft')) this.player.rotateTo(deltaTime, Direction.Left);
-        if (this.keyListener.IsDown('ArrowRight')) this.player.rotateTo(deltaTime, Direction.Right);
+        if (this.keysUp['ArrowUp']) {
+            this.player.moveTo(this.labyrinth, deltaTime, Direction.Forward)
+        }
+        if (this.keysUp['ArrowDown']) {
+            this.player.moveTo(this.labyrinth, deltaTime, Direction.Backward)
+        }
+        if (this.keysUp['ArrowLeft']) {
+            this.player.rotateTo(deltaTime, Direction.Left)
+        }
+        if (this.keysUp['ArrowRight']) {
+            this.player.rotateTo(deltaTime, Direction.Right)
+        }
+    }
 
+    private handleKeyDown = (event: KeyboardEvent) => {
+        this.keysUp[event.key] = true
+    }
+
+    private handleKeyUp = (event: KeyboardEvent) => {
+        this.keysUp[event.key] = false
     }
 }
 

@@ -108,7 +108,6 @@ export const loadTexture = (
     return texture;
 };
 
-// ==================== ЭКСПОРТ ====================
 export default {
     createShaderProgram,
     loadTexture

@@ -1,5 +1,5 @@
 import {createShaderProgram} from './WebGLUtils'
-import {Player} from './Player'
+import {Direction, Player} from './Player'
 import {Labyrinth} from './Labyrinth.ts'
 import {LabyrinthView} from './LabyrinthView.ts'
 import {PlayerController} from "./PlayerController.ts";
@@ -37,7 +37,7 @@ class App {
         this.player = new Player()
         this.mazeRenderer = new LabyrinthView(this.labyrinth, this.canvas,  this.gl, this.program)
         this.backroundRenderer = new BackroundRenderer(this.labyrinth, this.canvas,  this.gl, this.program)
-        this.playerController = new PlayerController(this.player, this.labyrinth)
+        this.playerController = new PlayerController(this.canvas, this.gl, this.player, this.labyrinth)
     }
 
     run() {
@@ -53,7 +53,6 @@ class App {
         this.backroundRenderer.Render()
         this.mazeRenderer.Render(this.player);
     }
-
 }
 
 export {App}

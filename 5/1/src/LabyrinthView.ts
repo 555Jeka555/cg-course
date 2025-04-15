@@ -10,7 +10,7 @@ export enum WALL_TYPE {
     NIGHT_WALL = 3,
     STONE = 4,
     BROWN = 5,
-    MOULD = 6
+    BROKEN_BRICK = 6
 }
 
 class LabyrinthView {
@@ -60,7 +60,7 @@ class LabyrinthView {
             this.loadTexture(WALL_TYPE.NIGHT_WALL, 'nightwall.jpg'),
             this.loadTexture(WALL_TYPE.STONE, 'stone.jpg'),
             this.loadTexture(WALL_TYPE.BROWN, 'brown.jpg'),
-            this.loadTexture(WALL_TYPE.MOULD, 'mould.jpg')
+            this.loadTexture(WALL_TYPE.BROKEN_BRICK, 'broken-brick-wall-png.png')
         ];
 
         Promise.all(loadPromises).then(() => {

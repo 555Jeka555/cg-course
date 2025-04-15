@@ -10,7 +10,6 @@ enum Direction {
 
 class Player {
     public position: vec3
-    // TODO: readonly
     direction: number
     speed: number
     rotationSpeed: number
