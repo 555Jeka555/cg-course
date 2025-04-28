@@ -136,14 +136,9 @@ class CurvedLineApp {
     }
 
     public resize() {
-        const width = this.canvas.clientWidth;
-        const height = this.canvas.clientHeight;
-
-        if (this.canvas.width !== width || this.canvas.height !== height) {
-            this.canvas.width = width;
-            this.canvas.height = height;
-            this.gl.viewport(0, 0, width, height);
-        }
+        this.canvas.width = window.innerWidth
+        this.canvas.height = window.innerHeight
+        this.gl.viewport(0, 0, window.innerWidth, window.innerHeight)
     }
 }
 
