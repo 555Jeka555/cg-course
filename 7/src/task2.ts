@@ -15,19 +15,19 @@ uniform float u_radius;
 
 void main() {
     vec2 center = u_center * u_resolution;
-    float dist = distance(gl_FragCoord.xy, center);
+    float dist = distance(чgl_FragCoord.xy, center);
     
     if (dist < u_radius) {
-        gl_FragColor = vec4(0.71, 0.13, 0.18, 1.0); // Japanese red color
+        gl_FragColor = vec4(0.71, 0.13, 0.18, 1.0); // Крассный круг
     } else {
-        gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0); // White background
+        gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0); // Белый фон
     }
 }
 `;
 
 class JapaneseFlag {
-    private canvas: HTMLCanvasElement;
-    private gl: WebGLRenderingContext;
+    private readonly canvas: HTMLCanvasElement;
+    private readonly gl: WebGLRenderingContext;
     private program: WebGLProgram;
     private positionBuffer: WebGLBuffer;
 
