@@ -14,13 +14,13 @@ uniform vec2 u_center;
 uniform float u_radius;
 
 void main() {
-    vec2 center = u_center * u_resolution;
-    float dist = distance(gl_FragCoord.xy, center);
+    vec2 center = u_center * u_resolution;           // Пересчет центра в пиксельные координаты
+    float dist = distance(gl_FragCoord.xy, center);  // Вычисление расстояния от текущего пикселя до центра
     
     if (dist < u_radius) {
         gl_FragColor = vec4(0.71, 0.13, 0.18, 1.0); // Крассный круг
     } else {
-        gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0); // Белыйфон
+        gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0); // Белый фон
     }
 }
 `;
@@ -130,7 +130,6 @@ class JapaneseFlag {
     public resize() {
         const width = window.innerWidth;
         const height = Math.floor(width * 2 / 3);
-
         this.canvas.width = width;
         this.canvas.height = height;
     }

@@ -1,12 +1,13 @@
 import sys
+from typing import Optional, List, Any
 from PyQt5.QtWidgets import QApplication, QMainWindow, QOpenGLWidget
 from PyQt5.QtCore import QTimer
 from OpenGL.GL import *
 from OpenGL.GLU import gluPerspective
 
 VERTEX_SHADER = """
-#version 330 core
-layout (location = 0) in vec2 aPos;
+#version 330 core                   // версия GLSL
+layout (location = 0) in vec2 aPos; // 2D координаты вершин
 uniform float radius;
 
 void main()
@@ -17,57 +18,60 @@ void main()
 
 GEOMETRY_SHADER = """
 #version 330 core
-layout (points) in;
-layout (line_strip, max_vertices=120) out;
-
+layout (points) in;                         // Принимает точки
+layout (line_strip, max_vertices=120) out;  // Выводит линии, line_strip соединяет вершины в линию, делая круг
 uniform float radius;
 
 void main()
 {
     for (int i = 0; i <= 120; i++)
     {
-        float angle = 6.2831853 * i / 100.0;
-        vec2 position = vec2(radius * cos(angle), radius * sin(angle));
-        gl_Position = vec4(position, 0.0, 1.0);
-        EmitVertex();
+        float angle = 6.2831853 * i / 100.0;  // 2π*i/100 (полный круг)
+        
+        vec2 position = vec2(radius * cos(angle), radius * sin(angle));  // Преобразует полярные координаты радиус и угол в декартовы координаты x, y
+        
+        gl_Position = vec4(position, 0.0, 1.0);   // Устанавливает финальную позицию вершины в clip-пространстве OpenGL
+        
+        EmitVertex();  // Генерирует вершину
     }
-    EndPrimitive();
+    EndPrimitive();  // Завершает примитив
 }
 """
 
 FRAGMENT_SHADER = """
 #version 330 core
-out vec4 FragColor;
+out vec4 gl_FragColor;
 
 void main()
 {
-    FragColor = vec4(1.0, 0.5, 0.2, 1.0);
+    gl_FragColor = vec4(1.0, 0.5, 0.2, 1.0);
 }
 """
 
 
 class App(QOpenGLWidget):
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional[QMainWindow] = None) -> None:
         super().__init__(parent)
-        self.timer = QTimer(self)
+        self.timer: QTimer = QTimer(self)
         self.timer.timeout.connect(self.update)
         self.timer.start(10)
-        self.shader_program = None
-        self.radius = 0.3
+        self.shader_program: Optional[int] = None
+        self.radius: float = 0.3
 
-    def initializeGL(self):
+    def initializeGL(self) -> None:
         glClearColor(0.2, 0.2, 0.2, 1.0)
         self.shader_program = self.compile_shaders()
 
-    def resizeGL(self, w, h):
+    def resizeGL(self, w: int, h: int) -> None:
         glViewport(0, 0, w, h)
         glMatrixMode(GL_PROJECTION)
         glLoadIdentity()
         gluPerspective(45, w / h, 0.1, 100.0)
         glMatrixMode(GL_MODELVIEW)
 
-    def paintGL(self):
+    def paintGL(self) -> None:
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+
         if self.shader_program is not None:
             glUseProgram(self.shader_program)
             glUniform1f(glGetUniformLocation(self.shader_program, "radius"), self.radius)
@@ -76,59 +80,91 @@ class App(QOpenGLWidget):
             glVertex2f(0.0, 0.0)
             glEnd()
 
-    def compile_shaders(self):
-        vertex_shader = glCreateShader(GL_VERTEX_SHADER)
-        glShaderSource(vertex_shader, VERTEX_SHADER)
-        glCompileShader(vertex_shader)
-        if not glGetShaderiv(vertex_shader, GL_COMPILE_STATUS):
-            info_log = glGetShaderInfoLog(vertex_shader)
-            print("Vertex shader compilation failed:", info_log.decode())
+    def compile_shaders(self) -> Optional[int]:
+        vertex_shader: Optional[int] = self._compile_vertex_shader()
+        geometry_shader: Optional[int] = self._compile_geometry_shader()
+        fragment_shader: Optional[int] = self._compile_fragment_shader()
+
+        if not all([vertex_shader, geometry_shader, fragment_shader]):
             return None
 
-        geometry_shader = glCreateShader(GL_GEOMETRY_SHADER)
-        glShaderSource(geometry_shader, GEOMETRY_SHADER)
-        glCompileShader(geometry_shader)
-        if not glGetShaderiv(geometry_shader, GL_COMPILE_STATUS):
-            info_log = glGetShaderInfoLog(geometry_shader)
-            print("Geometry shader compilation failed:", info_log.decode())
+        shader_program: Optional[int] = self._create_shader_program(
+            vertex_shader, geometry_shader, fragment_shader
+        )
+
+        self._cleanup_shaders(vertex_shader, geometry_shader, fragment_shader)
+
+        return shader_program
+
+    def _compile_vertex_shader(self) -> Optional[int]:
+        return self._compile_shader(GL_VERTEX_SHADER, VERTEX_SHADER, "Vertex")
+
+    def _compile_geometry_shader(self) -> Optional[int]:
+        return self._compile_shader(GL_GEOMETRY_SHADER, GEOMETRY_SHADER, "Geometry")
+
+    def _compile_fragment_shader(self) -> Optional[int]:
+        return self._compile_shader(GL_FRAGMENT_SHADER, FRAGMENT_SHADER, "Fragment")
+
+    def _compile_shader(
+            self,
+            shader_type: int,
+            source: str,
+            shader_name: str
+    ) -> Optional[int]:
+        shader: int = glCreateShader(shader_type)
+        glShaderSource(shader, source)
+        glCompileShader(shader)
+
+        if not glGetShaderiv(shader, GL_COMPILE_STATUS):
+            info_log: bytes = glGetShaderInfoLog(shader)
+            print(f"{shader_name} shader compilation failed:", info_log.decode())
             return None
 
-        fragment_shader = glCreateShader(GL_FRAGMENT_SHADER)
-        glShaderSource(fragment_shader, FRAGMENT_SHADER)
-        glCompileShader(fragment_shader)
-        if not glGetShaderiv(fragment_shader, GL_COMPILE_STATUS):
-            info_log = glGetShaderInfoLog(fragment_shader)
-            print("Fragment shader compilation failed:", info_log.decode())
-            return None
+        return shader
 
-        shader_program = glCreateProgram()
-        glAttachShader(shader_program, vertex_shader)
-        glAttachShader(shader_program, geometry_shader)
-        glAttachShader(shader_program, fragment_shader)
-        glLinkProgram(shader_program)
-        if not glGetProgramiv(shader_program, GL_LINK_STATUS):
-            info_log = glGetProgramInfoLog(shader_program)
+    def _create_shader_program(
+            self,
+            vertex_shader: int,
+            geometry_shader: int,
+            fragment_shader: int
+    ) -> Optional[int]:
+        program: int = glCreateProgram()
+
+        glAttachShader(program, vertex_shader)
+        glAttachShader(program, geometry_shader)
+        glAttachShader(program, fragment_shader)
+
+        glLinkProgram(program)
+
+        if not glGetProgramiv(program, GL_LINK_STATUS):
+            info_log: bytes = glGetProgramInfoLog(program)
             print("Shader program linking failed:", info_log.decode())
             return None
 
+        return program
+
+    def _cleanup_shaders(
+            self,
+            vertex_shader: int,
+            geometry_shader: int,
+            fragment_shader: int
+    ) -> None:
         glDeleteShader(vertex_shader)
         glDeleteShader(geometry_shader)
         glDeleteShader(fragment_shader)
 
-        return shader_program
-
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.setGeometry(100, 100, 800, 800)
         self.setWindowTitle("Circle with geometrical shader")
-        self.glWidget = App(self)
-        self.setCentralWidget(self.glWidget)
+        self.app: App = App(self)
+        self.setCentralWidget(self.app)
 
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    mainWindow = MainWindow()
+    app: QApplication = QApplication(sys.argv)
+    mainWindow: MainWindow = MainWindow()
     mainWindow.show()
     sys.exit(app.exec_())
