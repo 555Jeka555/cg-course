@@ -100,7 +100,6 @@ class GLWidget(QtWidgets.QOpenGLWidget):
                                                                        0, 0, 0,  # точка, на которую смотрим
                                                                        0, 1, 0)  # вектор "вверх"
 
-
     # Мировые координаты в координаты камеры
     def convert_global_coords_to_camera_coords(self, eye_x, eye_y, eye_z, center_x, center_y, center_z, up_x, up_y, up_z):
         eye = np.array([eye_x, eye_y, eye_z])
