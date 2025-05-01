@@ -53,6 +53,7 @@ class GLWidget(QtWidgets.QOpenGLWidget):
 
         self.last_pos = QtCore.QPoint()
         self.setMouseTracking(True)
+
         self.timer = QtCore.QTimer(self)
         self.timer.timeout.connect(self.update_progress)
         self.timer.start(15)
@@ -141,14 +142,6 @@ class GLWidget(QtWidgets.QOpenGLWidget):
         self.scale = max(0.1, min(10.0, self.scale + delta * 0.1))  # масштаб от 0.1 до 10
         self.update()
 
-    def scale_matrix(self, scale):
-        return np.array([
-            [scale, 0, 0, 0],
-            [0, scale, 0, 0],
-            [0, 0, scale, 0],
-            [0, 0, 0, 1]
-        ], dtype=np.float32)
-
     def draw_surface(self):
         rows, cols = 100, 100
         glBegin(GL_LINES)
@@ -183,6 +176,14 @@ class GLWidget(QtWidgets.QOpenGLWidget):
         elif self.progress <= 0.0:
             self.direction = 1
         self.update()
+
+    def scale_matrix(self, scale):
+        return np.array([
+            [scale, 0, 0, 0],
+            [0, scale, 0, 0],
+            [0, 0, scale, 0],
+            [0, 0, 0, 1]
+        ], dtype=np.float32)
 
     def rotate_x(self, angle):
         angle = np.radians(angle)

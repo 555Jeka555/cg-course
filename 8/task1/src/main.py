@@ -1,25 +1,42 @@
 from PyQt5.QtWidgets import QApplication, QOpenGLWidget
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtCore import Qt, QTimer, QPoint
 from OpenGL.GL import *
 from OpenGL.GL.shaders import compileShader, compileProgram
 import numpy as np
 
+# Фоновое излучение (Ambient): Имитирует рассеянный свет,
+# который равномерно освещает все объекты сцены без учёта их ориентации
+# Не зависит от направления источника света и нормалей поверхности
+# Рассчитывается как произведение ambient_color_света * ambient_color_материала
+# Пример: Освещение от стен помещения, облачного неба
+
+# Диффузное излучение (Diffuse): Моделирует взаимодействие направленного
+# света с матовыми поверхностями по закону Ламберта
+# Зависит от угла между нормалью поверхности и направлением света (cosθ = dot(n, l))
+# Рассчитывается как diffuse_color_света * (dot(n,l) * diffuse_color_материала)
+# Пример: Матовая машина
+
+# Зеркальное излучение (Specular):  Создаёт направленные блики по модели Фонга/Блинна
+# Зависит от угла между вектором обзора и отражённым лучом. Использует степень блеска для контроля резкости блика
+# Рассчитывается как specular_color_света * (pow(dot(v,r), shininess) * specular_color_материала)
+# Пример: Блики на металлических поверхностях
+
 VERTEX_SHARED = """
 #version 330 core
-layout(location = 0) in vec3 aPos;
-layout(location = 1) in vec3 aNormal;
+layout(location = 0) in vec3 aPos;     // позиция вершины (3D координаты)
+layout(location = 1) in vec3 aNormal;  // нормаль вершины (3D вектор)
 
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
 
-out vec3 FragPos;
-out vec3 Normal;
+out vec3 FragPos;  // позиция вершины в мировых координатах (для фрагментного шейдера)
+out vec3 Normal;   // нормаль в мировых координатах (для фрагментного шейдера)
 
 void main() {
     gl_Position = projection * view * model * vec4(aPos, 1.0);
-    FragPos = vec3(model * vec4(aPos, 1.0));
-    Normal = mat3(transpose(inverse(model))) * aNormal;
+    FragPos = vec3(model * vec4(aPos, 1.0));                // позиция вершины в мировых координатах.
+    Normal = mat3(transpose(inverse(model))) * aNormal;     // нормаль, преобразованная в мировые координаты
 }
 """
 
@@ -49,13 +66,13 @@ void main() {
     // Diffuse 
     vec3 norm = normalize(Normal);
     vec3 lightDir = normalize(lightPos - FragPos);
-    float diff = max(dot(norm, lightDir), 0.0);
+    float diff = max(dot(norm, lightDir), 0.0);             // Если угол больше 90°, освещение отсутствует
     vec3 diffuse = lightDiffuse * (diff * materialDiffuse);
 
     // Specular
-    vec3 viewDir = normalize(viewPos - FragPos);
-    vec3 reflectDir = reflect(-lightDir, norm);
-    float spec = pow(max(dot(viewDir, reflectDir), 0.0), materialShininess);
+    vec3 viewDir = normalize(viewPos - FragPos);   // направление от фрагмента к камере.
+    vec3 reflectDir = reflect(-lightDir, norm);    // отражённый вектор света относительно нормали.
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), materialShininess);    // Вычисляем угол между взглядом и отражённым светом. Возводим в степень materialShininess для контроля резкости блика.
     vec3 specular = lightSpecular * (spec * materialSpecular);
 
     vec3 result = ambient + diffuse + specular;
@@ -86,23 +103,26 @@ class GLWidget(QOpenGLWidget):
         self.setWindowTitle("Task1")
         self.setGeometry(300, 300, 800, 600)
 
+        self.rotation_x = 0.0
+        self.rotation_y = 0.0
+        self.scale = 1.0
+
         self.material = Material()
         self.light = Light()
         self.camera_pos = [0.0, 0.0, 3.0]
         self.rotation = [0, 0]
 
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.update_rotation)
-        self.timer.start(16)
+        self.last_pos = QPoint()
+        self.setMouseTracking(True)
 
     def initializeGL(self):
         glEnable(GL_DEPTH_TEST)
-        self.shader = compileProgram(
+        self.program = compileProgram(
             compileShader(VERTEX_SHARED, GL_VERTEX_SHADER),
             compileShader(FRAGMENT_SHARED, GL_FRAGMENT_SHADER)
         )
+        self.update_view_matrix()
 
-        # Вершины куба с нормалями
         vertices = [
             # Позиции         # Нормали
             -0.5, -0.5, -0.5, 0.0, 0.0, -1.0,
@@ -144,7 +164,7 @@ class GLWidget(QOpenGLWidget):
 
         self.vao = glGenVertexArrays(1)
         self.vbo = glGenBuffers(1)
-        self.ebo = glGenBuffers(1)
+        self.ebo = glGenBuffers(1) # EBO (Element Buffer Object) буфер который хранит индексы вершин
 
         glBindVertexArray(self.vao)
 
@@ -169,73 +189,124 @@ class GLWidget(QOpenGLWidget):
 
     def paintGL(self):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        glUseProgram(self.shader)
+        glUseProgram(self.program)
 
-        # Матрицы преобразований
-        model = np.eye(4, dtype=np.float32)
-        model = self.rotate(model, self.rotation[0], [1, 0, 0])
-        model = self.rotate(model, self.rotation[1], [0, 1, 0])
+        self.update_model_matrix()
 
         view = np.eye(4, dtype=np.float32)
-        view[2, 3] = -3.0  # Отодвигаем камеру
+        view[2, 3] = -3.0
 
         projection = self.perspective(45, self.width() / self.height(), 0.1, 100)
 
-        # Передача матриц
-        glUniformMatrix4fv(glGetUniformLocation(self.shader, "model"), 1, GL_TRUE, model)
-        glUniformMatrix4fv(glGetUniformLocation(self.shader, "view"), 1, GL_TRUE, view)
-        glUniformMatrix4fv(glGetUniformLocation(self.shader, "projection"), 1, GL_TRUE, projection)
+        glUniformMatrix4fv(glGetUniformLocation(self.program, "model"), 1, GL_TRUE, self.model_matrix)
+        glUniformMatrix4fv(glGetUniformLocation(self.program, "view"), 1, GL_TRUE, view)
+        glUniformMatrix4fv(glGetUniformLocation(self.program, "projection"), 1, GL_TRUE, projection)
 
-        # Параметры материала
-        glUniform3fv(glGetUniformLocation(self.shader, "materialAmbient"), 1, self.material.ambient)
-        glUniform3fv(glGetUniformLocation(self.shader, "materialDiffuse"), 1, self.material.diffuse)
-        glUniform3fv(glGetUniformLocation(self.shader, "materialSpecular"), 1, self.material.specular)
-        glUniform1f(glGetUniformLocation(self.shader, "materialShininess"), self.material.shininess)
+        glUniform3fv(glGetUniformLocation(self.program, "materialAmbient"), 1, self.material.ambient)
+        glUniform3fv(glGetUniformLocation(self.program, "materialDiffuse"), 1, self.material.diffuse)
+        glUniform3fv(glGetUniformLocation(self.program, "materialSpecular"), 1, self.material.specular)
+        glUniform1f(glGetUniformLocation(self.program, "materialShininess"), self.material.shininess)
 
-        # Параметры света
-        glUniform3fv(glGetUniformLocation(self.shader, "lightPos"), 1, self.light.position)
-        glUniform3fv(glGetUniformLocation(self.shader, "lightAmbient"), 1, self.light.ambient)
-        glUniform3fv(glGetUniformLocation(self.shader, "lightDiffuse"), 1, self.light.diffuse)
-        glUniform3fv(glGetUniformLocation(self.shader, "lightSpecular"), 1, self.light.specular)
-        glUniform3fv(glGetUniformLocation(self.shader, "viewPos"), 1, self.camera_pos)
+        glUniform3fv(glGetUniformLocation(self.program, "lightPos"), 1, self.light.position)
+        glUniform3fv(glGetUniformLocation(self.program, "lightAmbient"), 1, self.light.ambient)
+        glUniform3fv(glGetUniformLocation(self.program, "lightDiffuse"), 1, self.light.diffuse)
+        glUniform3fv(glGetUniformLocation(self.program, "lightSpecular"), 1, self.light.specular)
+        glUniform3fv(glGetUniformLocation(self.program, "viewPos"), 1, self.camera_pos)
 
-        # Отрисовка куба
         glBindVertexArray(self.vao)
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, None)
         glBindVertexArray(0)
 
-    def update_rotation(self):
-        self.rotation[0] = (self.rotation[0] + 0.5) % 360
-        self.rotation[1] = (self.rotation[1] + 0.5) % 360
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.last_pos = event.pos()
+
+    def mouseMoveEvent(self, event):
+        if event.buttons() & Qt.LeftButton:
+            dx = event.x() - self.last_pos.x()
+            dy = event.y() - self.last_pos.y()
+            self.rotation_x += dy * 0.5
+            self.rotation_y += dx * 0.5
+            self.last_pos = event.pos()
+            self.update()
+
+    def wheelEvent(self, event):
+        delta = event.angleDelta().y() / 120
+        self.scale = max(0.1, min(10.0, self.scale + delta * 0.1))  # масштаб от 0.1 до 10
         self.update()
 
-    def rotate(self, matrix, angle, axis):
-        angle = np.radians(angle)
-        axis = np.array(axis)
-        axis = axis / np.linalg.norm(axis)
-        c = np.cos(angle)
-        s = np.sin(angle)
-        t = 1 - c
+    def update_model_matrix(self):
+        self.model_matrix = np.identity(4, dtype=np.float32)
 
-        rotation = np.array([
-            [t*axis[0]*axis[0] + c, t*axis[0]*axis[1] - s*axis[2], t*axis[0]*axis[2] + s*axis[1], 0],
-            [t*axis[0]*axis[1] + s*axis[2], t*axis[1]*axis[1] + c, t*axis[1]*axis[2] - s*axis[0], 0],
-            [t*axis[0]*axis[2] - s*axis[1], t*axis[1]*axis[2] + s*axis[0], t*axis[2]*axis[2] + c, 0],
+        self.model_matrix = self.scale_matrix(self.scale) @ self.model_matrix
+
+        self.model_matrix = self.rotate_y(self.rotation_y) @ self.model_matrix
+        self.model_matrix = self.rotate_x(self.rotation_x) @ self.model_matrix
+
+    def update_view_matrix(self):
+        self.view_matrix = self.convert_global_coords_to_camera_coords(0, 0, 3,  # позиция камеры
+                                                                       0, 0, 0,  # точка, на которую смотрим
+                                                                       0, 1, 0)  # вектор "вверх"
+
+    def convert_global_coords_to_camera_coords(self, eye_x, eye_y, eye_z, center_x, center_y, center_z, up_x, up_y, up_z):
+        eye = np.array([eye_x, eye_y, eye_z])
+        center = np.array([center_x, center_y, center_z])
+        up = np.array([up_x, up_y, up_z])
+
+        z_axis = (center - eye)
+        z_axis = z_axis / np.linalg.norm(z_axis)
+
+        x_axis = np.cross(z_axis, up)
+        x_axis = x_axis / np.linalg.norm(x_axis)
+
+        y_axis = np.cross(x_axis, z_axis)
+
+        view = np.identity(4, dtype=np.float32)
+        view[0, :3] = x_axis
+        view[1, :3] = y_axis
+        view[2, :3] = -z_axis
+        view[:3, 3] = [-np.dot(x_axis, eye), -np.dot(y_axis, eye), np.dot(z_axis, eye)]
+
+        return view
+
+    def scale_matrix(self, scale):
+        return np.array([
+            [scale, 0, 0, 0],
+            [0, scale, 0, 0],
+            [0, 0, scale, 0],
             [0, 0, 0, 1]
         ], dtype=np.float32)
 
-        return np.dot(matrix, rotation)
+    def rotate_x(self, angle):
+        angle = np.radians(angle)
+        c = np.cos(angle)
+        s = np.sin(angle)
+        return np.array([
+            [1, 0, 0, 0],
+            [0, c, -s, 0],
+            [0, s, c, 0],
+            [0, 0, 0, 1]
+        ], dtype=np.float32)
 
-    def perspective(self, fovy, aspect, near, far):
-        f = 1.0 / np.tan(np.radians(fovy) / 2.0)
-        proj = np.zeros((4, 4), dtype=np.float32)
-        proj[0, 0] = f / aspect
-        proj[1, 1] = f
-        proj[2, 2] = (far + near) / (near - far)
-        proj[2, 3] = (2.0 * far * near) / (near - far)
-        proj[3, 2] = -1.0
+    def rotate_y(self, angle):
+        angle = np.radians(angle)
+        c = np.cos(angle)
+        s = np.sin(angle)
+        return np.array([
+            [c, 0, s, 0],
+            [0, 1, 0, 0],
+            [-s, 0, c, 0],
+            [0, 0, 0, 1]
+        ], dtype=np.float32)
 
-        return proj
+    def perspective(self, fov, aspect, near, far):
+        focus_distance = 1.0 / np.tan(np.radians(fov) / 2)
+        return np.array([
+            [focus_distance / aspect, 0, 0, 0],
+            [0, focus_distance, 0, 0],
+            [0, 0, (far + near) / (near - far), 2 * far * near / (near - far)],
+            [0, 0, -1, 0]
+        ], dtype=np.float32)
 
 
 if __name__ == '__main__':
