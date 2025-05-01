@@ -1,6 +1,6 @@
 const vertexShaderSource = `
-attribute float position;
-uniform vec2 u_resolution;
+attribute float position; // для каждой вершины
+uniform float aspect; // глобальные данные
 
 float CalculateRadius(float x) {
     return (1.0 + sin(x)) *
@@ -18,8 +18,7 @@ void main() {
     pos.x = R * cos(x) * 0.5;
     pos.y = R * sin(x) * 0.5;
     
-    // Масштабируем с учетом соотношения сторон
-    float aspect = u_resolution.x / u_resolution.y;
+    // Масштабируем с учетом соотношения сторон - TODO сделать так чтобы вершины умножались на матрицу ModelViewProjection
     if (aspect > 1.0) {
         pos.x /= aspect;
     } else {
@@ -47,7 +46,7 @@ class CurvedLineApp {
     private program: WebGLProgram;
     private positionBuffer: WebGLBuffer;
     private positions: Float32Array<any>;
-    private resolutionUniformLocation: WebGLUniformLocation | null;
+    private aspectUniform: WebGLUniformLocation | null;
 
     constructor() {
         this.canvas = document.createElement('canvas');
@@ -83,7 +82,7 @@ class CurvedLineApp {
             console.error('Program linking error:', this.gl.getProgramInfoLog(this.program));
         }
 
-        this.resolutionUniformLocation = this.gl.getUniformLocation(this.program, 'u_resolution');
+        this.aspectUniform = this.gl.getUniformLocation(this.program, 'aspect');
 
         this.gl.deleteShader(vertexShader);
         this.gl.deleteShader(fragmentShader);
@@ -121,8 +120,8 @@ class CurvedLineApp {
 
         this.gl.useProgram(this.program);
 
-        if (this.resolutionUniformLocation) {
-            this.gl.uniform2f(this.resolutionUniformLocation, this.canvas.width, this.canvas.height);
+        if (this.aspectUniform) {
+            this.gl.uniform1f(this.aspectUniform, this.canvas.width / this.canvas.height);
         }
 
         const positionAttributeLocation = this.gl.getAttribLocation(this.program, 'position');

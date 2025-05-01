@@ -15,30 +15,43 @@ uniform vec2 area_w;
 uniform vec2 area_h;
 uniform int max_iterations;
 uniform sampler2D palette_texture;
+uniform float time; // Добавляем uniform для времени
 
 void main() {
     vec2 C = vec2(gl_FragCoord.x * (area_w.y - area_w.x) / rect_width + area_w.x,
-                    gl_FragCoord.y * (area_h.y - area_h.x) / rect_height + area_h.x);
+                 gl_FragCoord.y * (area_h.y - area_h.x) / rect_height + area_h.x);
+    
+    // Добавляем небольшую анимацию начальной точки
+    C.x += 0.01 * sin(time * 0.5);
+    C.y += 0.01 * cos(time * 0.3);
+    
     vec2 Z = vec2(0.0);
-    int iteration = 0;
-
-    while (iteration < max_iterations) {
-        float x = Z.x * Z.x - Z.y * Z.y + C.x;
-        float y = 2.0 * Z.x * Z.y + C.y;
-
-        if (x * x + y * y > 4.0)
+    int iteration;
+    
+    for (int i = 0; i < 1000; i++) {
+        if (i >= max_iterations) break;
+        
+        // Модифицируем формулу для анимации
+        float x = (Z.x * Z.x) - (Z.y * Z.y) + C.x;
+        float y = (2.0 + 0.1 * sin(time)) * Z.x * Z.y + C.y;
+        
+        if (x * x + y * y > 4.0) {
+            iteration = i;
             break;
-
+        }
+        
         Z.x = x;
         Z.y = y;
-
-        iteration++;
+        iteration = i + 1;
     }
 
-    float normalized_iteration = float(iteration) / float(max_iterations);
+    // Добавляем эффект пульсации в цветах
+    float pulse = 0.5 + 0.5 * sin(time * 2.0);
+    float smoothed = float(iteration) + 1.0 - log(log(length(Z))) / log(2.0);
+    float normalized_iteration = (smoothed / float(max_iterations)) * pulse;
+    
     vec3 color = texture2D(palette_texture, vec2(normalized_iteration, 0.5)).rgb;
-
-    gl_FragColor = vec4((iteration == max_iterations ? vec3(0.0) : color), 1.0);
+    gl_FragColor = vec4((iteration >= max_iterations ? vec3(0.0) : color), 1.0);
 }
 `;
 
@@ -54,13 +67,14 @@ class MandelbrotViewer {
     private area_h: [number, number] = [-1.0, 1.0];
     private max_iterations = 1000;
     private zoom_factor = 0.1;
+    private time = 0;
     private last_pos: {x: number, y: number} | null = null;
 
     constructor() {
         this.canvas = document.createElement('canvas');
         document.body.appendChild(this.canvas);
-        this.canvas.width = 800;
-        this.canvas.height = 600;
+        this.canvas.width = 1600;
+        this.canvas.height = 1000;
         this.canvas.style.cursor = 'move';
 
         const gl = this.canvas.getContext('webgl');
@@ -78,6 +92,7 @@ class MandelbrotViewer {
         this.setupShaders();
         this.setupGeometry();
         this.loadPaletteTexture();
+        this.startAnimation();
     }
 
     private setupShaders() {
@@ -98,7 +113,7 @@ class MandelbrotViewer {
     }
 
     private compileShader(type: number, source: string): WebGLShader {
-        const shader = this.gl.createShader(type)!;
+        const shader = this.gl.createShader(type);
         this.gl.shaderSource(shader, source);
         this.gl.compileShader(shader);
 
@@ -203,14 +218,27 @@ class MandelbrotViewer {
         this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_WRAP_T, this.gl.CLAMP_TO_EDGE);
     }
 
+    private startAnimation() {
+        const animate = () => {
+            this.time += 0.001;
+            this.render();
+            requestAnimationFrame(animate);
+        };
+        animate();
+    }
+
     private render() {
         const gl = this.gl;
-
         gl.viewport(0, 0, this.canvas.width, this.canvas.height);
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
         gl.clear(gl.COLOR_BUFFER_BIT);
 
         gl.useProgram(this.program);
+
+        const timeLocation = gl.getUniformLocation(this.program, "time");
+        if (timeLocation) {
+            gl.uniform1f(timeLocation, this.time);
+        }
 
         // Set uniforms
         gl.uniform1f(gl.getUniformLocation(this.program, "rect_width"), this.canvas.width);

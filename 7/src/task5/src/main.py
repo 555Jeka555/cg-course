@@ -8,7 +8,6 @@ from OpenGL.GLU import gluPerspective
 VERTEX_SHADER = """
 #version 330 core                   // версия GLSL
 layout (location = 0) in vec2 aPos; // 2D координаты вершин
-uniform float radius;
 
 void main()
 {
@@ -16,11 +15,13 @@ void main()
 }
 """
 
+# TODO Доработать так чтобы при ресайзе сохранялось соотношение сторон
 GEOMETRY_SHADER = """
 #version 330 core
 layout (points) in;                         // Принимает точки
 layout (line_strip, max_vertices=120) out;  // Выводит линии, line_strip соединяет вершины в линию, делая круг
 uniform float radius;
+uniform vec2 pointPosition;
 
 void main()
 {
@@ -28,9 +29,9 @@ void main()
     {
         float angle = 6.2831853 * i / 100.0;  // 2π*i/100 (полный круг)
         
-        vec2 position = vec2(radius * cos(angle), radius * sin(angle));  // Преобразует полярные координаты радиус и угол в декартовы координаты x, y
+        vec2 offset = vec2(radius * cos(angle), radius * sin(angle));  // Преобразует полярные координаты радиус и угол в декартовы координаты x, y
         
-        gl_Position = vec4(position, 0.0, 1.0);   // Устанавливает финальную позицию вершины в clip-пространстве OpenGL
+        gl_Position = vec4(pointPosition + offset, 0.0, 1.0);   // Устанавливает финальную позицию вершины
         
         EmitVertex();  // Генерирует вершину
     }
@@ -49,6 +50,12 @@ void main()
 """
 
 
+class Circle():
+    def __init__(self, radius: float, pointPosition: List[float]) -> None:
+        self.radius = radius
+        self.pointPosition = pointPosition
+
+
 class App(QOpenGLWidget):
     def __init__(self, parent: Optional[QMainWindow] = None) -> None:
         super().__init__(parent)
@@ -56,29 +63,29 @@ class App(QOpenGLWidget):
         self.timer.timeout.connect(self.update)
         self.timer.start(10)
         self.shader_program: Optional[int] = None
-        self.radius: float = 0.3
+
+        self.circles = [
+            Circle(0.3, [0.5, -0.5]),
+            Circle(0.5, [0.5, 0.5])
+        ]
 
     def initializeGL(self) -> None:
         glClearColor(0.2, 0.2, 0.2, 1.0)
         self.shader_program = self.compile_shaders()
-
-    def resizeGL(self, w: int, h: int) -> None:
-        glViewport(0, 0, w, h)
-        glMatrixMode(GL_PROJECTION)
-        glLoadIdentity()
-        gluPerspective(45, w / h, 0.1, 100.0)
-        glMatrixMode(GL_MODELVIEW)
 
     def paintGL(self) -> None:
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
         if self.shader_program is not None:
             glUseProgram(self.shader_program)
-            glUniform1f(glGetUniformLocation(self.shader_program, "radius"), self.radius)
-            glBegin(GL_POINTS)
-            glColor3f(1.0, 1.0, 1.0)
-            glVertex2f(0.0, 0.0)
-            glEnd()
+            for circle in self.circles:
+                glUniform1f(glGetUniformLocation(self.shader_program, "radius"), circle.radius)
+                glUniform2f(glGetUniformLocation(self.shader_program, "pointPosition"),
+                            circle.pointPosition[0], circle.pointPosition[1])
+
+                glBegin(GL_POINTS)
+                glVertex2f(0.0, 0.0)
+                glEnd()
 
     def compile_shaders(self) -> Optional[int]:
         vertex_shader: Optional[int] = self._compile_vertex_shader()
@@ -157,14 +164,13 @@ class App(QOpenGLWidget):
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
-        self.setGeometry(100, 100, 800, 800)
         self.setWindowTitle("Circle with geometrical shader")
-        self.app: App = App(self)
+        self.app = App(self)
         self.setCentralWidget(self.app)
-
+        self.resize(800, 800)
 
 if __name__ == "__main__":
-    app: QApplication = QApplication(sys.argv)
-    mainWindow: MainWindow = MainWindow()
+    app = QApplication(sys.argv)
+    mainWindow = MainWindow()
     mainWindow.show()
     sys.exit(app.exec_())

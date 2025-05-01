@@ -32,6 +32,7 @@ class MorphingApp {
     private projectionViewLocation: WebGLUniformLocation;
     private progress: number = 0;
     private direction: number = 1;
+    private rotationY: number = 45;
 
     constructor() {
         this.canvas = document.createElement('canvas');
@@ -97,7 +98,7 @@ class MorphingApp {
     }
 
     private initMatrices() {
-        const view = this.translate(-2.5, 0, -3.5).multiply(this.rotateY(45));
+        const view = this.translate(0, 0, -3.5).multiply(this.rotateY(this.rotationY));
         const projection = this.perspective(45, this.canvas.width/this.canvas.height, 0.1, 100);
         const pv = projection.multiply(view);
 
@@ -106,7 +107,7 @@ class MorphingApp {
     }
 
     private animate() {
-        this.progress += this.direction * 0.015;
+        this.progress += this.direction * 0.005;
 
         if (this.progress >= 1.0 || this.progress <= 0.0) {
             this.direction *= -1;
@@ -128,7 +129,7 @@ class MorphingApp {
         this.gl.vertexAttribPointer(posAttrib, 2, this.gl.FLOAT, false, 0, 0);
         this.gl.enableVertexAttribArray(posAttrib);
 
-        this.gl.drawArrays(this.gl.LINES, 0, 100*100*4);
+        this.gl.drawArrays(this.gl.LINES, 0, 39600);
     }
 
     private perspective(fov: number, aspect: number, near: number, far: number): Matrix4 {
