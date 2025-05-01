@@ -37,7 +37,7 @@ void main()
 class GLWidget(QtWidgets.QOpenGLWidget):
     def __init__(self, parent=None):
         super(GLWidget, self).__init__(parent)
-        self.setWindowTitle("Centered Rotating Morphing Surface with Zoom")
+        self.setWindowTitle("Morphing")
         self.setGeometry(300, 300, 800, 600)
 
         # Анимация морфинга
