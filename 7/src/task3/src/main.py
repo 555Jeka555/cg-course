@@ -40,18 +40,14 @@ class GLWidget(QtWidgets.QOpenGLWidget):
         self.setWindowTitle("Morphing")
         self.setGeometry(300, 300, 800, 600)
 
-        # Анимация морфинга
         self.progress = 0.0
         self.direction = 1
         self.speed = 0.05
 
-        # Параметры вращения и масштабирования фигуры
         self.rotation_x = 0.0
         self.rotation_y = 0.0
         self.scale = 1.0
-        self.model_matrix = np.identity(4, dtype=np.float32)
 
-        # Матрицы камеры
         self.view_matrix = np.identity(4, dtype=np.float32)
         self.projection_matrix = np.identity(4, dtype=np.float32)
 
