@@ -3,9 +3,20 @@ from OpenGL.GL import *
 from OpenGL.GL.shaders import compileProgram, compileShader
 import numpy as np
 
+FRAGMENT_SHADER = """
+#version 330 core
+out vec4 color;
+
+void main()
+{
+    color = vec4(1.0, 1.0, 1.0, 1.0);
+}
+"""
+
 VERTEX_SHADER = """
 #version 330 core
-layout(location = 0) in vec3 position;
+layout(location = 0) in vec3 position; // спецификатор, указывает, что атрибут должен использовать слот 0
+//  входной атрибут для координат вершин, хранящихся в буфере VBO
 
 uniform float progress;
 uniform mat4 model;
@@ -14,22 +25,11 @@ uniform mat4 projection;
 
 void main()
 {
-    vec3 initial_position = vec3(position.x, position.y, position.x * position.x + position.y * position.y);
-    vec3 final_position = vec3(position.x, position.y, position.x * position.x - position.y * position.y);
-    vec3 morphed_position = mix(initial_position, final_position, progress);
+    vec3 initial_position = vec3(position.x, position.y, position.x * position.x + position.y * position.y);  // Параболоид
+    vec3 final_position = vec3(position.x, position.y, position.x * position.x - position.y * position.y);    // Седло
+    vec3 morphed_position = mix(initial_position, final_position, progress);   //  линейная интерполяция
 
     gl_Position = projection * view * model * vec4(morphed_position, 1.0);
-}
-"""
-
-
-FRAGMENT_SHADER = """
-#version 330 core
-out vec4 color;
-
-void main()
-{
-    color = vec4(1.0, 1.0, 1.0, 1.0);
 }
 """
 
@@ -55,14 +55,11 @@ class GLWidget(QtWidgets.QOpenGLWidget):
         self.view_matrix = np.identity(4, dtype=np.float32)
         self.projection_matrix = np.identity(4, dtype=np.float32)
 
-        # Управление мышью
         self.last_pos = QtCore.QPoint()
         self.setMouseTracking(True)
-
-        # Таймер для анимации
         self.timer = QtCore.QTimer(self)
         self.timer.timeout.connect(self.update_progress)
-        self.timer.start(16)
+        self.timer.start(15)
 
     def initializeGL(self):
         glClearColor(0.2, 0.2, 0.2, 1.0)
@@ -82,10 +79,8 @@ class GLWidget(QtWidgets.QOpenGLWidget):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         glUseProgram(self.program)
 
-        # Обновляем матрицу модели (вращение и масштабирование фигуры)
         self.update_model_matrix()
 
-        # Передаем параметры в шейдер
         glUniform1f(glGetUniformLocation(self.program, "progress"), self.progress)
         glUniformMatrix4fv(glGetUniformLocation(self.program, "model"),
                            1, GL_TRUE, self.model_matrix)
@@ -97,40 +92,38 @@ class GLWidget(QtWidgets.QOpenGLWidget):
         self.draw_surface()
 
     def update_model_matrix(self):
-        """Обновляет матрицу модели с учетом текущих углов вращения и масштаба"""
         self.model_matrix = np.identity(4, dtype=np.float32)
-        # Применяем масштабирование
+
         self.model_matrix = self.scale_matrix(self.scale) @ self.model_matrix
-        # Применяем вращение
+
         self.model_matrix = self.rotate_y(self.rotation_y) @ self.model_matrix
         self.model_matrix = self.rotate_x(self.rotation_x) @ self.model_matrix
 
     def update_view_matrix(self):
-        """Позиция камеры, смотрящей на центр сцены"""
-        # Камера отодвинута по оси Z и смотрит в центр (0,0,0)
-        self.view_matrix = self.look_at(0, 0, 3,  # Позиция камеры
-                                        0, 0, 0,  # Точка, на которую смотрим
-                                        0, 1, 0)  # Вектор "вверх"
+        self.view_matrix = self.convert_global_coords_to_camera_coords(0, 0, 3,  # позиция камеры
+                                                                       0, 0, 0,  # точка, на которую смотрим
+                                                                       0, 1, 0)  # вектор "вверх"
 
-    def look_at(self, eye_x, eye_y, eye_z, center_x, center_y, center_z, up_x, up_y, up_z):
-        """Создает view матрицу, аналогичную gluLookAt"""
+
+    # Мировые координаты в координаты камеры
+    def convert_global_coords_to_camera_coords(self, eye_x, eye_y, eye_z, center_x, center_y, center_z, up_x, up_y, up_z):
         eye = np.array([eye_x, eye_y, eye_z])
         center = np.array([center_x, center_y, center_z])
         up = np.array([up_x, up_y, up_z])
 
-        f = (center - eye)
-        f = f / np.linalg.norm(f)
+        z_axis = (center - eye)
+        z_axis = z_axis / np.linalg.norm(z_axis)
 
-        s = np.cross(f, up)
-        s = s / np.linalg.norm(s)
+        x_axis = np.cross(z_axis, up)
+        x_axis = x_axis / np.linalg.norm(x_axis)
 
-        u = np.cross(s, f)
+        y_axis = np.cross(x_axis, z_axis)
 
         view = np.identity(4, dtype=np.float32)
-        view[0, :3] = s
-        view[1, :3] = u
-        view[2, :3] = -f
-        view[:3, 3] = [-np.dot(s, eye), -np.dot(u, eye), np.dot(f, eye)]
+        view[0, :3] = x_axis
+        view[1, :3] = y_axis
+        view[2, :3] = -z_axis
+        view[:3, 3] = [-np.dot(x_axis, eye), -np.dot(y_axis, eye), np.dot(z_axis, eye)]
 
         return view
 
@@ -150,12 +143,10 @@ class GLWidget(QtWidgets.QOpenGLWidget):
 
     def wheelEvent(self, event):
         delta = event.angleDelta().y() / 120
-        # Изменяем масштаб (ограничиваем диапазоном от 0.1 до 10)
-        self.scale = max(0.1, min(10.0, self.scale + delta * 0.1))
+        self.scale = max(0.1, min(10.0, self.scale + delta * 0.1))  # масштаб от 0.1 до 10
         self.update()
 
     def scale_matrix(self, scale):
-        """Создает матрицу масштабирования"""
         return np.array([
             [scale, 0, 0, 0],
             [0, scale, 0, 0],
@@ -169,15 +160,15 @@ class GLWidget(QtWidgets.QOpenGLWidget):
         for i in range(rows - 1):
             for j in range(cols - 1):
                 x0 = -1.0 + 2.0 * i / (rows - 1)
-                y0 = -1.0 + 2.0 * j / (rows - 1)
+                y0 = -1.0 + 2.0 * j / (cols - 1)
                 z0 = x0 * x0 + y0 * y0
 
                 x1 = -1.0 + 2.0 * (i + 1) / (rows - 1)
-                y1 = -1.0 + 2.0 * j / (rows - 1)
+                y1 = -1.0 + 2.0 * j / (cols - 1)
                 z1 = x1 * x1 + y1 * y1
 
                 x2 = -1.0 + 2.0 * i / (rows - 1)
-                y2 = -1.0 + 2.0 * (j + 1) / (rows - 1)
+                y2 = -1.0 + 2.0 * (j + 1) / (cols - 1)
                 z2 = x2 * x2 + y2 * y2
 
                 glVertex3f(x0, y0, z0)
@@ -221,12 +212,12 @@ class GLWidget(QtWidgets.QOpenGLWidget):
         ], dtype=np.float32)
 
     def perspective(self, fov, aspect, near, far):
-        f = 1.0 / np.tan(np.radians(fov) / 2)
+        focus_distance = 1.0 / np.tan(np.radians(fov) / 2)
         return np.array([
-            [f / aspect, 0, 0, 0],
-            [0, f, 0, 0],
-            [0, 0, (far + near) / (near - far), 2 * far * near / (near - far)],
-            [0, 0, -1, 0]
+            [focus_distance / aspect, 0, 0, 0],
+            [0, focus_distance, 0, 0],
+            [0, 0, (far + near) / (near - far), 2 * far * near / (near - far)], # Сжимает Z сохраняет перспективное сокращение
+            [0, 0, -1, 0]   # Z копирует в W
         ], dtype=np.float32)
 
 
