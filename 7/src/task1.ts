@@ -1,34 +1,26 @@
 const vertexShaderSource = `
-attribute float position; // для каждой вершины
-uniform float aspect; // глобальные данные
+attribute float position;
+uniform mat4 modelViewProjection;
 
 float CalculateRadius(float x) {
     return (1.0 + sin(x)) *
-           (1.0 + 0.9 * cos(8.0*x)) *      //  высокочастотная составляющая 8 лепестков с амплитудой 0.9
-           (1.0 + 0.1 * cos(24.0 * x)) *   // частота 24 "зубца" с амплитудой 0.1
-           (0.5 + 0.05 * cos(140.0 * x));   // модуляция 140 мелких волн с амплитудой всего 0.05
+           (1.0 + 0.9 * cos(8.0*x)) *
+           (1.0 + 0.1 * cos(24.0 * x)) *
+           (0.5 + 0.05 * cos(140.0 * x));
 }
 
 void main() {
     float x = position;
     float R = CalculateRadius(x);
     
-    // Вычисляем позицию в координатах от -1 до 1
-    vec2 pos;
-    pos.x = R * cos(x) * 0.5;
-    pos.y = R * sin(x) * 0.5;
+    vec4 pos = vec4(
+        R * cos(x) * 0.5,
+        R * sin(x) * 0.5 - 0.5, // Сдвиг по Y
+        0.0,
+        1.0
+    );
     
-    // Масштабируем с учетом соотношения сторон - TODO сделать так чтобы вершины умножались на матрицу ModelViewProjection
-    if (aspect > 1.0) {
-        pos.x /= aspect;
-    } else {
-        pos.y *= aspect;
-    }
-    
-    pos.y -= 0.5;
-    
-    gl_Position = vec4(pos, 0.0, 1.0);
-    gl_PointSize = 2.0;
+    gl_Position = modelViewProjection * pos;
 }
 `;
 
@@ -46,7 +38,7 @@ class CurvedLineApp {
     private program: WebGLProgram;
     private positionBuffer: WebGLBuffer;
     private positions: Float32Array<any>;
-    private aspectUniform: WebGLUniformLocation | null;
+    private modelViewProjectionUniform: WebGLUniformLocation | null;
 
     constructor() {
         this.canvas = document.createElement('canvas');
@@ -82,10 +74,10 @@ class CurvedLineApp {
             console.error('Program linking error:', this.gl.getProgramInfoLog(this.program));
         }
 
-        this.aspectUniform = this.gl.getUniformLocation(this.program, 'aspect');
-
         this.gl.deleteShader(vertexShader);
         this.gl.deleteShader(fragmentShader);
+
+        this.modelViewProjectionUniform = this.gl.getUniformLocation(this.program, 'modelViewProjection');
     }
 
     private compileShader(type: number, source: string): WebGLShader {
@@ -120,8 +112,25 @@ class CurvedLineApp {
 
         this.gl.useProgram(this.program);
 
-        if (this.aspectUniform) {
-            this.gl.uniform1f(this.aspectUniform, this.canvas.width / this.canvas.height);
+        const aspect = this.canvas.width / this.canvas.height;
+        let left = -1.0, right = 1.0, bottom = -1.0, top = 1.0;
+
+        if (aspect > 1) {       // Ландшафтный режим
+            left *= aspect;     // Расширяем по X
+            right *= aspect;
+        } else {                // Портретный режим
+            bottom /= aspect;   // Расширяем по Y
+            top /= aspect;
+        }
+
+        //  Генерация матрицы проекции
+        const projectionMatrix = this.createOrthographicMatrix(left, right, bottom, top);
+        if (this.modelViewProjectionUniform) {
+            this.gl.uniformMatrix4fv(
+                this.modelViewProjectionUniform,
+                false,
+                projectionMatrix
+            );
         }
 
         const positionAttributeLocation = this.gl.getAttribLocation(this.program, 'position');
@@ -138,6 +147,20 @@ class CurvedLineApp {
         this.canvas.width = window.innerWidth
         this.canvas.height = window.innerHeight
         this.gl.viewport(0, 0, window.innerWidth, window.innerHeight)
+    }
+
+    private createOrthographicMatrix(
+        left: number,
+        right: number,
+        bottom: number,
+        top: number
+    ): Float32Array<any> {
+        return new Float32Array([
+            2 / (right - left), 0, 0, 0,   // Сжимает X-координаты до диапазона [-1, 1]
+            0, 2 / (top - bottom), 0, 0,   // Сжимает Y-координаты до диапазона [-1, 1]
+            0, 0, 1, 0,                    // Z без изменений так как 2D
+            -(right + left)/(right - left), -(top + bottom)/(top - bottom), 0, 1 // -(right + left) / (right - left): Сдвигает центр по X в 0. -(top + bottom) / (top - bottom): Сдвигает центр по Y в 0.
+        ]);
     }
 }
 
