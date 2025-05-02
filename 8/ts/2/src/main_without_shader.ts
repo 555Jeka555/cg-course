@@ -30,12 +30,6 @@ light.shadow.mapSize.height = 2048;
 light.shadow.bias = -0.001;
 scene.add(light);
 
-// Вспомогательные элементы
-// const lightHelper = new THREE.PointLightHelper(light);
-// scene.add(lightHelper);
-// const gridHelper = new THREE.GridHelper(20, 20);
-// scene.add(gridHelper);
-
 // Материал с расширенными свойствами
 class CustomMaterial extends THREE.MeshStandardMaterial {
     private ambientColor: THREE.Color;
@@ -90,8 +84,7 @@ const plane = new THREE.Mesh(
         color: 0xcccccc,
         side: THREE.DoubleSide,
         roughness: 0.8,
-        metalness: 0.2,
-        shadowSide: THREE.DoubleSide
+        metalness: 0.2
     })
 );
 plane.rotation.x = -Math.PI / 2;
@@ -108,23 +101,13 @@ const shadowMaterial = new THREE.ShaderMaterial({
         shadowMap: { value: light.shadow.map },
         shadowMatrix: { value: light.shadow.matrix },
         shadowRadius: { value: 0.5 },
-        samples: { value: 16 },
-        // Добавляем uniforms для модели освещения
-        materialDiffuse: { value: new THREE.Color(0.5, 0.25, 0.15) }, // Было (1.0, 0.5, 0.31)
-        materialAmbient: { value: new THREE.Color(0.1, 0.1, 0.1) },  // Было (0.2, 0.2, 0.2)
-        materialSpecular: { value: new THREE.Color(0.2, 0.2, 0.2) }, // Было (0.5, 0.5, 0.5)
-        materialShininess: { value: 100 },
-        viewPos: { value: camera.position }
+        samples: { value: 16 }
     },
     vertexShader: `
-        uniform mat4 shadowMatrix;
-    
-        varying vec3 vNormal;
         varying vec3 vWorldPosition;
         varying vec4 vShadowCoord;
         
         void main() {
-            vNormal = normalize(normalMatrix * normal);
             vec4 worldPosition = modelMatrix * vec4(position, 1.0);
             vWorldPosition = worldPosition.xyz;
             vShadowCoord = shadowMatrix * worldPosition;
@@ -140,16 +123,12 @@ const shadowMaterial = new THREE.ShaderMaterial({
         uniform float shadowRadius;
         uniform int samples;
         
-        uniform vec3 materialDiffuse;
-        uniform vec3 materialAmbient;
-        uniform vec3 materialSpecular;
-        uniform float materialShininess;
-        uniform vec3 viewPos;
-        
-        varying vec3 vNormal;
         varying vec3 vWorldPosition;
         varying vec4 vShadowCoord;
-       
+        
+        float random(vec2 seed) {
+            return fract(sin(dot(seed, vec2(12.9898, 78.233))) * 43758.5453;
+        }
         
         float calculateShadow() {
             vec3 shadowCoord = vShadowCoord.xyz / vShadowCoord.w;
@@ -177,64 +156,19 @@ const shadowMaterial = new THREE.ShaderMaterial({
         }
         
         void main() {
-            // Ambient
-            vec3 ambient = lightColor * materialAmbient;
-            
-            // Diffuse 
-            vec3 norm = normalize(vNormal);
-            vec3 lightDir = normalize(lightPos - vWorldPosition);
-            float diff = max(dot(norm, lightDir), 0.0);
-            vec3 diffuse = lightColor * (diff * materialDiffuse);
-            
-            // Specular
-            vec3 viewDir = normalize(viewPos - vWorldPosition);
-            vec3 reflectDir = reflect(-lightDir, norm);
-            float spec = pow(max(dot(viewDir, reflectDir), 0.0), materialShininess);
-            vec3 specular = lightColor * (spec * materialSpecular);
-            
-            // Shadow
             float shadow = calculateShadow();
+            vec3 lightDir = normalize(lightPos - vWorldPosition);
+            float diff = max(dot(vec3(0,1,0), lightDir), 0.0);
             
-            // Combine with shadow affecting only diffuse and specular
-            vec3 result = ambient + shadow * (diffuse * 0.7 + specular * 0.3);
+            vec3 result = lightColor * diff * lightIntensity * shadow;
             gl_FragColor = vec4(result, 1.0);
         }
     `
 });
 
-// Для сферы
-const sphereMaterial = shadowMaterial.clone();
-sphereMaterial.uniforms.materialDiffuse.value = new THREE.Color(0xff0000);
-sphereMaterial.uniforms.materialAmbient.value = new THREE.Color(0x00ff00);
-sphereMaterial.uniforms.materialSpecular.value = new THREE.Color(0xffffff);
-sphereMaterial.uniforms.materialShininess.value = 200;
-
-sphere.material = sphereMaterial as unknown as CustomMaterial;
-
-// Для куба
-const cubeMaterial = shadowMaterial.clone();
-cubeMaterial.uniforms.materialDiffuse.value = new THREE.Color(0x00ff00);
-cubeMaterial.uniforms.materialAmbient.value = new THREE.Color(0x0000ff);
-cubeMaterial.uniforms.materialSpecular.value = new THREE.Color(0xffffff);
-cubeMaterial.uniforms.materialShininess.value = 50;
-
-cube.material = cubeMaterial as unknown as CustomMaterial;
-
 // Анимация
 function animate() {
     requestAnimationFrame(animate);
-
-    // Обновляем позицию камеры в шейдере
-    sphereMaterial.uniforms.viewPos.value = camera.position;
-    cubeMaterial.uniforms.viewPos.value = camera.position;
-
-    // Обновляем матрицы теней
-    sphereMaterial.uniforms.shadowMatrix.value = light.shadow.matrix;
-    cubeMaterial.uniforms.shadowMatrix.value = light.shadow.matrix;
-
-    // Обновляем shadow map
-    sphereMaterial.uniforms.shadowMap.value = light.shadow.map;
-    cubeMaterial.uniforms.shadowMap.value = light.shadow.map;
 
     sphere.rotation.y += 0.01;
     cube.rotation.x += 0.01;
@@ -242,5 +176,12 @@ function animate() {
     controls.update();
     renderer.render(scene, camera);
 }
+
+// Обработка изменения размера
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
 
 animate();
