@@ -112,6 +112,11 @@ scene.add(plane);
 // Кастомный шейдерный материал для реализации модели Фонга и мягких теней
 const customMaterial = new THREE.ShaderMaterial({
     uniforms: {
+        projectionMatrix: { value: new THREE.Matrix4() },
+        modelViewMatrix: { value: new THREE.Matrix4() },
+        modelMatrix: { value: new THREE.Matrix4() },
+        normalMatrix: { value: new THREE.Matrix3() },
+
         lightPosition: { value: light.position },
         lightColor: { value: new THREE.Color(light.color) },
         lightSpecular: { value: light.specularColor },
@@ -129,6 +134,8 @@ const customMaterial = new THREE.ShaderMaterial({
         shadowMapSize: { value: new THREE.Vector2(2048, 2048) }
     },
     vertexShader: `
+    uniform mat4 shadowMatrix;
+    
     varying vec3 vNormal;
     varying vec3 vWorldPosition;
     varying vec4 vShadowCoord;
