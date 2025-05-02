@@ -24,7 +24,8 @@ export class SceneManager {
     }
 
     private initScene(): void {
-        this.scene.background = new THREE.Color(0x87CEEB); // Голубое небо
+        this.scene.background = new THREE.Color(0x87CEEB);
+        this.addGroundPlane();
     }
 
     private initRenderer(): void {
@@ -48,6 +49,31 @@ export class SceneManager {
         this.scene.add(directionalLight);
     }
 
+    private addGroundPlane(): void {
+        const textureLoader = new THREE.TextureLoader();
+
+        const grassTexture = textureLoader.load('textures/grass.jpg');
+        grassTexture.wrapS = THREE.RepeatWrapping;
+        grassTexture.wrapT = THREE.RepeatWrapping;
+
+        const groundMaterial = new THREE.MeshStandardMaterial({
+            map: grassTexture,
+            roughness: 1.0,
+            metalness: 0.0
+        });
+
+        const groundGeometry = new THREE.PlaneGeometry(30, 30);
+
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+
+        ground.position.y = -5;
+        ground.position.x = 25;
+
+        this.scene.add(ground);
+    }
+
     public loadModel(
         url: string,
         hasAnimation: boolean,
@@ -60,13 +86,8 @@ export class SceneManager {
             (gltf) => {
                 const model = gltf.scene;
 
-                model.position.x = position.x;
-                model.position.y = position.y;
-                model.position.z = position.z;
-
-                model.scale.x = scale.x;
-                model.scale.y = scale.y;
-                model.scale.z = scale.z;
+                model.position.copy(position);
+                model.scale.copy(scale);
 
                 this.scene.add(model);
 
@@ -91,6 +112,45 @@ export class SceneManager {
                 console.error('Error loading model:', error);
             }
         );
+    }
+
+    public loadFence(
+        url: string,
+        positions: Vector3[],
+        rotations: Vector3[],
+        scale: Vector3
+    ): void {
+        const loader = new GLTFLoader();
+
+        positions.forEach((position: Vector3, index: number) => {
+            loader.load(
+                url,
+                (gltf) => {
+                    const rotation = rotations[index]
+
+                    const model = gltf.scene;
+
+                    model.position.copy(position);
+                    model.rotation.set(rotation.x, rotation.y, rotation.z);
+                    model.scale.copy(scale);
+
+                    this.scene.add(model);
+
+                    model.traverse((child) => {
+                        if (child instanceof THREE.Mesh) {
+                            child.castShadow = true;
+                            child.receiveShadow = true;
+                        }
+                    });
+
+                    this.centerCameraOnObject(model);
+                },
+                undefined,
+                (error) => {
+                    console.error('Error loading model:', error);
+                }
+            );
+        });
     }
 
     private centerCameraOnObject(object: THREE.Object3D): void {
