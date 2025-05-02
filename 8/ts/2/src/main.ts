@@ -1,90 +1,66 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
-// Инициализация сцены, камеры и рендерера
+// Инициализация сцены
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Для мягких теней
-document.body.appendChild(renderer.domElement);
+scene.background = new THREE.Color(0x222222);
 
-// Настройка камеры
+// Камера
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.set(5, 5, 5);
 camera.lookAt(0, 0, 0);
 
-// Контроллер для вращения сцены
+// Рендерер
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Мягкие тени
+document.body.appendChild(renderer.domElement);
+
+// Контроллер
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 
-// Создаем источник света с дополнительными свойствами
-class ExtendedPointLight extends THREE.PointLight {
-    specularColor: THREE.Color;
-    ambientColor: THREE.Color;
-    radius: number;
-
-    constructor(
-        color?: THREE.ColorRepresentation,
-        intensity?: number,
-        distance?: number,
-        decay?: number,
-        specularColor?: THREE.Color,
-        ambientColor?: THREE.Color,
-        radius?: number
-    ) {
-        super(color, intensity, distance, decay);
-        this.specularColor = specularColor || new THREE.Color(0xffffff);
-        this.ambientColor = ambientColor || new THREE.Color(0x111111);
-        this.radius = radius || 1.0;
-    }
-
-    copy(source: ExtendedPointLight): this {
-        super.copy(source);
-        this.specularColor.copy(source.specularColor);
-        this.ambientColor.copy(source.ambientColor);
-        this.radius = source.radius;
-        return this;
-    }
-}
-
-const light: ExtendedPointLight = new ExtendedPointLight(0xffffff, 20, 100);
+// Источник света с тенями
+const light = new THREE.PointLight(0xffffff, 100, 100);
 light.position.set(5, 8, 5);
 light.castShadow = true;
 light.shadow.mapSize.width = 2048;
 light.shadow.mapSize.height = 2048;
 light.shadow.bias = -0.001;
-
-// Добавляем свойства для модели Фонга
-light.specularColor = new THREE.Color(0xffffff);
-light.ambientColor = new THREE.Color(0x111111);
-light.radius = 1.0; // Размер источника для мягких теней
-
 scene.add(light);
 
-// Вспомогательная визуализация источника света
+// Вспомогательные элементы
 const lightHelper = new THREE.PointLightHelper(light);
 scene.add(lightHelper);
+const gridHelper = new THREE.GridHelper(20, 20);
+scene.add(gridHelper);
 
-// Создаем материал с расширенными свойствами
-interface ExtendedMeshPhongMaterial extends THREE.MeshPhongMaterial {
-    ambientColor?: THREE.Color;
-    shininess?: number;
+// Материал с расширенными свойствами
+class CustomMaterial extends THREE.MeshStandardMaterial {
+    private ambientColor: THREE.Color;
+    private specularColor: THREE.Color;
+    private shininess: number;
+
+    constructor(params) {
+        super(params);
+        this.ambientColor = params.ambientColor || new THREE.Color(0xffffff);
+        this.specularColor = params.specularColor || new THREE.Color(0x111111);
+        this.shininess = params.shininess || 30;
+    }
 }
-
-const material: ExtendedMeshPhongMaterial = new THREE.MeshPhongMaterial({
-    color: 0x000000,
-    specular: 0x111111,
-    shininess: 100
-});
-
-// Добавляем свойства для модели Фонга
-material.ambientColor = new THREE.Color(0x00ff00);
 
 // Создаем объекты сцены
 const sphere = new THREE.Mesh(
     new THREE.SphereGeometry(1, 32, 32),
-    material.clone()
+    new CustomMaterial({
+        color: 0xff0000,
+        ambientColor: 0x00ff00,
+        specularColor: 0xffffff,
+        shininess: 100,
+        roughness: 0.1,
+        metalness: 0.5
+    })
 );
 sphere.position.set(-2, 1, 0);
 sphere.castShadow = true;
@@ -93,152 +69,113 @@ scene.add(sphere);
 
 const cube = new THREE.Mesh(
     new THREE.BoxGeometry(2, 2, 2),
-    material.clone()
+    new CustomMaterial({
+        color: 0x00ff00,
+        ambientColor: 0x0000ff,
+        specularColor: 0xffffff,
+        shininess: 50,
+        roughness: 0.3,
+        metalness: 0.3
+    })
 );
 cube.position.set(2, 1, 0);
 cube.castShadow = true;
 cube.receiveShadow = true;
 scene.add(cube);
 
+// Плоскость
 const plane = new THREE.Mesh(
     new THREE.PlaneGeometry(20, 20),
-    new THREE.MeshPhongMaterial({ color: 0xcccccc, side: THREE.DoubleSide })
+    new THREE.MeshStandardMaterial({
+        color: 0xcccccc,
+        side: THREE.DoubleSide,
+        roughness: 0.8,
+        metalness: 0.2
+    })
 );
 plane.rotation.x = -Math.PI / 2;
 plane.position.y = -1;
 plane.receiveShadow = true;
 scene.add(plane);
 
-// Кастомный шейдерный материал для реализации модели Фонга и мягких теней
-const customMaterial = new THREE.ShaderMaterial({
+// Кастомный шейдер для мягких теней
+const shadowMaterial = new THREE.ShaderMaterial({
     uniforms: {
-        lightPosition: { value: light.position },
-        lightColor: { value: new THREE.Color(light.color) },
-        lightSpecular: { value: light.specularColor },
-        lightAmbient: { value: light.ambientColor },
-        lightRadius: { value: light.radius },
+        lightPos: { value: light.position },
+        lightColor: { value: light.color },
         lightIntensity: { value: light.intensity },
-        materialDiffuse: { value: new THREE.Color(material.color) },
-        materialSpecular: { value: new THREE.Color(material.specular) },
-        materialAmbient: { value: material.ambientColor },
-        materialShininess: { value: material.shininess },
         shadowMap: { value: light.shadow.map },
         shadowMatrix: { value: light.shadow.matrix },
-        shadowBias: { value: light.shadow.bias },
-        shadowRadius: { value: 1.0 },
-        shadowMapSize: { value: new THREE.Vector2(2048, 2048) }
+        shadowRadius: { value: 0.5 },
+        samples: { value: 16 }
     },
     vertexShader: `
-    uniform mat4 shadowMatrix;
-    
-    varying vec3 vNormal;
-    varying vec3 vWorldPosition;
-    varying vec4 vShadowCoord;
-    
-    void main() {
-      vNormal = normalize(normalMatrix * normal);
-      vec4 worldPosition = modelMatrix * vec4(position, 1.0);
-      
-      vWorldPosition = worldPosition.xyz;
-      vShadowCoord = shadowMatrix * worldPosition;
-      
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-  `,
-    fragmentShader: `
-    uniform vec3 lightPosition;
-    uniform vec3 lightColor;
-    uniform vec3 lightSpecular;
-    uniform vec3 lightAmbient;
-    uniform float lightRadius;
-    uniform float lightIntensity;
-    
-    uniform vec3 materialDiffuse;
-    uniform vec3 materialSpecular;
-    uniform vec3 materialAmbient;
-    uniform float materialShininess;
-    
-    uniform sampler2D shadowMap;
-    uniform mat4 shadowMatrix;
-    uniform float shadowBias;
-    uniform float shadowRadius;
-    uniform vec2 shadowMapSize;
-    
-    varying vec3 vNormal;
-    varying vec3 vWorldPosition;
-    varying vec4 vShadowCoord;
-    
-    // Функция проверки видимости с учетом мягких теней
-    float getShadow() {
-      vec3 shadowCoord = vShadowCoord.xyz / vShadowCoord.w;
-      shadowCoord = shadowCoord * 0.5 + 0.5;
-      
-      if (shadowCoord.z > 1.0 || shadowCoord.z < 0.0) {
-        return 1.0;
-      }
-      
-      float sum = 0.0;
-      int samples = 16;
-      float radius = 0.01;
-      
-      for (int i = 0; i < samples; i++) {
-        // Простая реализация сэмплирования
-        float angle = float(i) * 3.14159 * 2.0 / float(samples);
-        vec2 offset = vec2(cos(angle), sin(angle)) * radius;
-        vec2 sampleCoord = shadowCoord.xy + offset;
+        varying vec3 vWorldPosition;
+        varying vec4 vShadowCoord;
         
-        float depth = texture2D(shadowMap, sampleCoord).x;
-        if (shadowCoord.z - shadowBias > depth) {
-          sum += 1.0;
+        void main() {
+            vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+            vWorldPosition = worldPosition.xyz;
+            vShadowCoord = shadowMatrix * worldPosition;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
-      }
-      
-      return 1.0 - (sum / float(samples));
-    }
-    
-    void main() {
-      vec3 normal = normalize(vNormal);
-      vec3 lightDir = normalize(lightPosition - vWorldPosition);
-      vec3 viewDir = normalize(cameraPosition - vWorldPosition);
-      vec3 reflectDir = reflect(-lightDir, normal);
-      
-      // Фоновая составляющая
-      vec3 ambient = lightAmbient * materialAmbient;
-      
-      // Диффузная составляющая
-      float diff = max(dot(normal, lightDir), 0.0);
-      vec3 diffuse = diff * lightColor * materialDiffuse;
-      
-      // Зеркальная составляющая (модель Фонга)
-      float spec = pow(max(dot(viewDir, reflectDir), 0.0), materialShininess);
-      vec3 specular = spec * lightSpecular * materialSpecular;
-      
-      // Проверка тени
-      float shadow = getShadow();
-      
-      // Увеличиваем интенсивность освещения
-      vec3 result = ambient + shadow * (diffuse * 2.0 + specular * 1.5);
-  
-      // Добавляем базовый цвет материала
-      vec3 finalColor = result * materialDiffuse;
-  
-      // Повышаем общую яркость
-      finalColor = pow(finalColor, vec3(1.0/2.2)); // Гамма-коррекция
-      
-      gl_FragColor = vec4(finalColor, 1.0);
-    }
-  `
+    `,
+    fragmentShader: `
+        uniform vec3 lightPos;
+        uniform vec3 lightColor;
+        uniform float lightIntensity;
+        uniform sampler2D shadowMap;
+        uniform mat4 shadowMatrix;
+        uniform float shadowRadius;
+        uniform int samples;
+        
+        varying vec3 vWorldPosition;
+        varying vec4 vShadowCoord;
+        
+        float random(vec2 seed) {
+            return fract(sin(dot(seed, vec2(12.9898, 78.233))) * 43758.5453;
+        }
+        
+        float calculateShadow() {
+            vec3 shadowCoord = vShadowCoord.xyz / vShadowCoord.w;
+            shadowCoord = shadowCoord * 0.5 + 0.5;
+            
+            if (shadowCoord.z > 1.0 || shadowCoord.z < 0.0) {
+                return 1.0;
+            }
+            
+            float sum = 0.0;
+            float radius = shadowRadius;
+            
+            for (int i = 0; i < samples; i++) {
+                float angle = float(i) * 3.14159 * 2.0 / float(samples);
+                vec2 offset = vec2(cos(angle), sin(angle)) * radius;
+                vec2 sampleCoord = shadowCoord.xy + offset;
+                
+                float depth = texture2D(shadowMap, sampleCoord).x;
+                if (shadowCoord.z - 0.005 > depth) {
+                    sum += 1.0;
+                }
+            }
+            
+            return 1.0 - (sum / float(samples));
+        }
+        
+        void main() {
+            float shadow = calculateShadow();
+            vec3 lightDir = normalize(lightPos - vWorldPosition);
+            float diff = max(dot(vec3(0,1,0), lightDir), 0.0);
+            
+            vec3 result = lightColor * diff * lightIntensity * shadow;
+            gl_FragColor = vec4(result, 1.0);
+        }
+    `
 });
-
-// Применяем кастомный материал к объектам
-sphere.material = customMaterial.clone() as unknown as ExtendedMeshPhongMaterial;
-cube.material = customMaterial.clone() as unknown as ExtendedMeshPhongMaterial;
 
 // Анимация
 function animate() {
     requestAnimationFrame(animate);
 
-    // Вращение объектов
     sphere.rotation.y += 0.01;
     cube.rotation.x += 0.01;
 
@@ -246,11 +183,11 @@ function animate() {
     renderer.render(scene, camera);
 }
 
-animate();
-
-// Обработка изменения размера окна
+// Обработка изменения размера
 window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
+
+animate();
