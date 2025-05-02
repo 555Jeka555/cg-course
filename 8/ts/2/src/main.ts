@@ -73,7 +73,7 @@ interface ExtendedMeshPhongMaterial extends THREE.MeshPhongMaterial {
 }
 
 const material: ExtendedMeshPhongMaterial = new THREE.MeshPhongMaterial({
-    color: 0xff0000,
+    color: 0x000000,
     specular: 0x111111,
     shininess: 100
 });
@@ -112,11 +112,6 @@ scene.add(plane);
 // Кастомный шейдерный материал для реализации модели Фонга и мягких теней
 const customMaterial = new THREE.ShaderMaterial({
     uniforms: {
-        projectionMatrix: { value: new THREE.Matrix4() },
-        modelViewMatrix: { value: new THREE.Matrix4() },
-        modelMatrix: { value: new THREE.Matrix4() },
-        normalMatrix: { value: new THREE.Matrix3() },
-
         lightPosition: { value: light.position },
         lightColor: { value: new THREE.Color(light.color) },
         lightSpecular: { value: light.specularColor },
