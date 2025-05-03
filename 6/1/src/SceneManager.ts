@@ -56,21 +56,38 @@ export class SceneManager {
         grassTexture.wrapS = THREE.RepeatWrapping;
         grassTexture.wrapT = THREE.RepeatWrapping;
 
+        const asphaltTexture = textureLoader.load('textures/asphalt.jpg'); // путь к текстуре асфальта
+        asphaltTexture.wrapS = THREE.RepeatWrapping;
+        asphaltTexture.wrapT = THREE.RepeatWrapping;
+
         const groundMaterial = new THREE.MeshStandardMaterial({
             map: grassTexture,
             roughness: 1.0,
             metalness: 0.0
         });
 
+        const asphaltMaterial = new THREE.MeshStandardMaterial({
+            map: asphaltTexture,
+            roughness: 0.8,
+            metalness: 0.2
+        });
+
         const groundGeometry = new THREE.PlaneGeometry(30, 30);
+        const asphaltGeometry = new THREE.PlaneGeometry(50, 50);
 
         const ground = new THREE.Mesh(groundGeometry, groundMaterial);
         ground.rotation.x = -Math.PI / 2;
         ground.receiveShadow = true;
-
         ground.position.y = -5;
         ground.position.x = 25;
 
+        const asphalt = new THREE.Mesh(asphaltGeometry, asphaltMaterial);
+        asphalt.rotation.x = -Math.PI / 2;
+        asphalt.receiveShadow = true;
+        asphalt.position.y = -5.1;
+        asphalt.position.x = 25;
+
+        this.scene.add(asphalt);
         this.scene.add(ground);
     }
 
