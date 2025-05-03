@@ -11,6 +11,20 @@ export class SceneManager {
     private mixers: THREE.AnimationMixer[] = [];
     private clock: THREE.Clock = new THREE.Clock();
 
+    private carModel: THREE.Object3D | null = null;
+    private carAnimationState = {
+        currentCorner: 0,
+        progress: 0,
+        speed: 0.009 // скорость движения
+    };
+    private squarePath: THREE.Vector3[] = [
+        new THREE.Vector3(10, -11.6, -15),  // начальная точка (угол 1)
+        new THREE.Vector3(40, -11.6, -15),  // угол 2
+        new THREE.Vector3(40, -11.6, 15),   // угол 3
+        new THREE.Vector3(10, -11.6, 15),   // угол 4
+        new THREE.Vector3(10, -11.6, -13)   // возврат к началу
+    ]
+
     constructor() {
         this.scene = new THREE.Scene();
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -103,6 +117,10 @@ export class SceneManager {
             (gltf) => {
                 const model = gltf.scene;
 
+                if (url === '../models/chevrolet.glb') {
+                    this.carModel = model;
+                }
+
                 model.position.copy(position);
                 model.scale.copy(scale);
 
@@ -189,10 +207,41 @@ export class SceneManager {
         this.controls.update();
     }
 
+    private updateCarAnimation(): void {
+        if (!this.carModel) return;
+
+        const { currentCorner, progress, speed } = this.carAnimationState;
+        const nextCorner = (currentCorner + 1) % this.squarePath.length;
+
+        const start = this.squarePath[currentCorner];
+        const end = this.squarePath[nextCorner];
+
+        // Интерполяция положения
+        this.carModel.position.lerpVectors(start, end, progress);
+
+        // Поворот модели в направлении движения
+        const direction = new THREE.Vector3().subVectors(end, start).normalize();
+        if (direction.length() > 0) {
+            this.carModel.lookAt(this.carModel.position.clone().add(direction));
+        }
+
+        // Обновление прогресса
+        this.carAnimationState.progress += speed;
+
+        // Если достигли следующего угла
+        if (this.carAnimationState.progress >= 1) {
+            this.carAnimationState.currentCorner = nextCorner;
+            this.carAnimationState.progress = 0;
+        }
+    }
+
     public animate(): void {
         requestAnimationFrame(() => this.animate());
 
         const delta = this.clock.getDelta();
+
+        this.updateCarAnimation();
+
         this.mixers.forEach(mixer => mixer.update(delta));
 
         this.controls.update();
