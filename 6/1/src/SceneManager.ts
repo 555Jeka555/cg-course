@@ -2,28 +2,17 @@ import * as THREE from "three";
 import {OrbitControls} from "three/examples/jsm/controls/OrbitControls";
 import {GLTFLoader} from "three/examples/jsm/loaders/GLTFLoader";
 import {Vector3} from "three/src/math/Vector3";
+import {CarAnimation} from "./CarAnimation.ts";
 
 export class SceneManager {
-    private scene: THREE.Scene;
-    private camera: THREE.PerspectiveCamera;
+    private readonly scene: THREE.Scene;
+    private readonly camera: THREE.PerspectiveCamera;
     private renderer: THREE.WebGLRenderer;
     private controls: OrbitControls;
     private mixers: THREE.AnimationMixer[] = [];
     private clock: THREE.Clock = new THREE.Clock();
-
-    private carModel: THREE.Object3D | null = null;
-    private carAnimationState = {
-        currentCorner: 0,
-        progress: 0,
-        speed: 0.009 // скорость движения
-    };
-    private squarePath: THREE.Vector3[] = [
-        new THREE.Vector3(10, -11.6, -15),  // начальная точка (угол 1)
-        new THREE.Vector3(40, -11.6, -15),  // угол 2
-        new THREE.Vector3(40, -11.6, 15),   // угол 3
-        new THREE.Vector3(10, -11.6, 15),   // угол 4
-        new THREE.Vector3(10, -11.6, -13)   // возврат к началу
-    ]
+    private animationModels: THREE.Object3D[] = [];
+    private carAnimation = new CarAnimation();
 
     constructor() {
         this.scene = new THREE.Scene();
@@ -70,7 +59,7 @@ export class SceneManager {
         grassTexture.wrapS = THREE.RepeatWrapping;
         grassTexture.wrapT = THREE.RepeatWrapping;
 
-        const asphaltTexture = textureLoader.load('textures/asphalt.jpg'); // путь к текстуре асфальта
+        const asphaltTexture = textureLoader.load('textures/asphalt.jpg');
         asphaltTexture.wrapS = THREE.RepeatWrapping;
         asphaltTexture.wrapT = THREE.RepeatWrapping;
 
@@ -117,9 +106,46 @@ export class SceneManager {
             (gltf) => {
                 const model = gltf.scene;
 
-                if (url === '../models/chevrolet.glb') {
-                    this.carModel = model;
+                model.position.copy(position);
+                model.scale.copy(scale);
+
+                this.scene.add(model);
+
+                model.traverse((child) => {
+                    if (child instanceof THREE.Mesh) {
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                    }
+                });
+
+                this.centerCameraOnObject(model);
+
+                if (hasAnimation && gltf.animations.length > 0) {
+                    const mixer = new THREE.AnimationMixer(model);
+                    const action = mixer.clipAction(gltf.animations[0]);
+                    action.play();
+                    this.mixers.push(mixer);
                 }
+            },
+            undefined,
+            (error) => {
+                console.error('Error loading model:', error);
+            }
+        );
+    }
+
+    public loadModelWithAnimation(
+        url: string,
+        hasAnimation: boolean,
+        position: Vector3,
+        scale: Vector3
+    ): void {
+        const loader = new GLTFLoader();
+        loader.load(
+            url,
+            (gltf) => {
+                const model = gltf.scene;
+                this.animationModels.push(model);
 
                 model.position.copy(position);
                 model.scale.copy(scale);
@@ -207,32 +233,28 @@ export class SceneManager {
         this.controls.update();
     }
 
-    private updateCarAnimation(): void {
-        if (!this.carModel) return;
+    private updateAnimationModels(): void {
+        this.animationModels.forEach((model) => {
+            const { currentCorner, progress, speed } = this.carAnimation.carAnimationState;
+            const nextCorner = (currentCorner + 1) % this.carAnimation.squarePath.length;
 
-        const { currentCorner, progress, speed } = this.carAnimationState;
-        const nextCorner = (currentCorner + 1) % this.squarePath.length;
+            const start = this.carAnimation.squarePath[currentCorner];
+            const end = this.carAnimation.squarePath[nextCorner];
 
-        const start = this.squarePath[currentCorner];
-        const end = this.squarePath[nextCorner];
+            model.position.lerpVectors(start, end, progress);
 
-        // Интерполяция положения
-        this.carModel.position.lerpVectors(start, end, progress);
+            const direction = new THREE.Vector3().subVectors(end, start).normalize();
+            if (direction.length() > 0) {
+                model.lookAt(model.position.clone().add(direction));
+            }
 
-        // Поворот модели в направлении движения
-        const direction = new THREE.Vector3().subVectors(end, start).normalize();
-        if (direction.length() > 0) {
-            this.carModel.lookAt(this.carModel.position.clone().add(direction));
-        }
+            this.carAnimation.carAnimationState.progress += speed;
 
-        // Обновление прогресса
-        this.carAnimationState.progress += speed;
-
-        // Если достигли следующего угла
-        if (this.carAnimationState.progress >= 1) {
-            this.carAnimationState.currentCorner = nextCorner;
-            this.carAnimationState.progress = 0;
-        }
+            if (this.carAnimation.carAnimationState.progress >= 1) {
+                this.carAnimation.carAnimationState.currentCorner = nextCorner;
+                this.carAnimation.carAnimationState.progress = 0;
+            }
+        })
     }
 
     public animate(): void {
@@ -240,7 +262,7 @@ export class SceneManager {
 
         const delta = this.clock.getDelta();
 
-        this.updateCarAnimation();
+        this.updateAnimationModels();
 
         this.mixers.forEach(mixer => mixer.update(delta));
 
