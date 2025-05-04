@@ -12,7 +12,7 @@ export class Bullet {
     constructor(position, direction, owner: string) {
         this.position = position;
         this.direction = direction;
-        this.speed = 1;
+        this.speed = 3;
         this.owner = owner; // 'player' или 'enemy'
         this.mesh = this.createModel();
     }

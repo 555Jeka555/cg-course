@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import {GameField} from "./GameField.ts";
+import {BLOCK_TYPE, GameField} from "./GameField.ts";
 import {Tank} from "./Tank.ts";
 import {Bullet} from "./Bullet.ts";
 import {Effect} from "./Effect.ts";
@@ -14,7 +14,7 @@ export class Game {
     private fieldSize: number = 22;
     private enemiesDestroyed: number = 0;
     private enemiesTotal: number = 20;
-    private maxEnemiesOnField: number = 0;
+    private maxEnemiesOnField: number = 5;
     private gameOver: boolean = false;
     private levelCompleted: boolean = false;
     private gameField: GameField;
@@ -66,28 +66,28 @@ export class Game {
         new TankType(
             'basic',
             1.9,
-            1500,
+            1000,
             1,
             this.basicTanksUrl[Math.floor(Math.random() * this.basicTanksUrl.length)],
         ),
         new TankType(
             'fast',
             3,
-            2000,
+            1500,
             1,
             this.fastTanksUrl[Math.floor(Math.random() * this.fastTanksUrl.length)],
         ),
         new TankType(
             'armored',
             1.5,
-            2500,
+            2000,
             3,
             this.armoredTanksUrl[Math.floor(Math.random() * this.armoredTanksUrl.length)],
         ),
         new TankType(
             'super',
             1.5,
-            3000,
+            2500,
             5,
             this.superTanksUrl[Math.floor(Math.random() * this.superTanksUrl.length)],
         ),
@@ -126,14 +126,10 @@ export class Game {
         this.scene.add(this.gameField.mesh);
         this.scene.add(this.playerTank.mesh);
 
-        // Позиционирование камеры
-        this.camera.position.set(0, 15, -15);
+        this.camera.position.set(0, 15, -13);
         this.camera.lookAt(0, 0, 0);
 
-        // Управление
         this.setupControls();
-
-        // Звуки
         this.setupAudio();
     }
 
@@ -218,7 +214,6 @@ export class Game {
     update(deltaTime) {
         if (this.gameOver || this.levelCompleted) return;
 
-        // Управление танком игрока
         const moveDirection = new THREE.Vector3();
         if (this.keys.up) moveDirection.z += 1;
         if (this.keys.down) moveDirection.z -= 1;
@@ -267,7 +262,7 @@ export class Game {
                 enemy.direction.clone().multiplyScalar(enemy.tankType.speed * deltaTime)
             );
 
-            if (this.isPositionValid(nextPosition, enemy.tankSize)) {
+            if (!this.isPositionBlocked(nextPosition, enemy.tankSize) && this.isPositionValid(nextPosition, enemy.tankSize)) {
                 enemy.move(enemy.direction.clone(), deltaTime);
             }
 
@@ -322,21 +317,19 @@ export class Game {
     }
 
     checkBulletCollision(bullet) {
-        // Проверка выхода за границы
         if (Math.abs(bullet.position.x) > this.fieldSize / 2 ||
             Math.abs(bullet.position.z) > this.fieldSize / 2) {
             return true;
         }
 
-        // Проверка столкновения с блоками
-        const gridX = Math.floor((bullet.position.x + this.fieldSize / 2 - this.gameField.blockSize ) / 2);
+        const gridX = Math.floor((bullet.position.x + this.fieldSize / 2 - this.gameField.blockSize) / 2);
         const gridZ = Math.floor((bullet.position.z + this.fieldSize / 2 - this.gameField.blockSize) / 2);
 
         if (gridX >= 0 && gridX < this.fieldSize && gridZ >= 0 && gridZ < this.fieldSize) {
             const block = this.gameField.grid[gridX][gridZ];
             if (block && block.userData) {
                 switch (block.userData.type) {
-                    case 'BRICK':
+                    case BLOCK_TYPE.BRICK:
                         block.userData.health--;
                         if (block.userData.health <= 0) {
                             this.gameField.mesh.remove(block);
@@ -346,11 +339,21 @@ export class Game {
                         this.createExplosion(bullet.position);
                         return true;
 
-                    case 'ARMOR':
+                    case BLOCK_TYPE.TREE:
+                        block.userData.health--;
+                        if (block.userData.health <= 0) {
+                            this.gameField.mesh.remove(block);
+                            this.scene.remove(block);
+                            this.gameField.grid[gridX][gridZ] = null;
+                        }
                         this.createExplosion(bullet.position);
                         return true;
 
-                    case 'HEADQUARTERS':
+                    case BLOCK_TYPE.ARMOR:
+                        this.createExplosion(bullet.position);
+                        return true;
+
+                    case BLOCK_TYPE.HEADQUARTERS:
                         block.userData.health--;
                         if (block.userData.health <= 0) {
                             this.gameOver = true;
@@ -378,7 +381,6 @@ export class Game {
         );
 
         if (bullet.owner === 'enemy') {
-            // Проверка столкновения с игроком
             const playerBox = new THREE.Box3().setFromObject(this.playerTank.mesh);
             if (bulletBox.intersectsBox(playerBox)) {
                 if (!this.playerTank.invulnerable && this.playerTank.takeDamage()) {
@@ -400,7 +402,6 @@ export class Game {
                 return true;
             }
         } else {
-            // Проверка столкновения с врагами
             for (let i = this.enemies.length - 1; i >= 0; i--) {
                 const enemy = this.enemies[i];
                 const enemyBox = new THREE.Box3().setFromObject(enemy.mesh);
@@ -408,9 +409,11 @@ export class Game {
                     if (enemy.takeDamage()) {
                         this.enemies.splice(i, 1);
                         this.enemiesDestroyed++;
+                        let ran = Math.random();
 
-                        // С шансом 20% создаем бонус
-                        if (Math.random() < 0.2) {
+                        console.log(ran)
+
+                        if (ran < 0.9) {
                             const bonusTypes = ['STAR', 'HELMET', 'BOMB', 'MACHINE_GUN', 'CLOCK', 'SHIELD'];
                             const type = bonusTypes[Math.floor(Math.random() * bonusTypes.length)];
                             const position = new THREE.Vector3(
@@ -463,12 +466,18 @@ export class Game {
                 gridZ >= 0 && gridZ < this.fieldSize
             ) {
                 const block = this.gameField.grid[gridX][gridZ];
-                if (block && block.userData && block.userData.type === 'BRICK') {
+                if (block &&
+                    block.userData &&
+                    (block.userData.type === BLOCK_TYPE.BRICK ||
+                        block.userData.type === BLOCK_TYPE.WATER ||
+                        block.userData.type === BLOCK_TYPE.ARMOR
+                    )
+                ) {
                     return true; // Есть кирпичная стена - заблокировано!
                 }
             }
         }
-        return false; // Нет блокировки
+        return false;
     }
 
     isPositionValid(position: Vector3, tankSize: number): boolean {
