@@ -22,6 +22,7 @@ export class ModelLoader {
                 },
                 undefined,
                 (error: ErrorEvent) => {
+                    console.error("Error url: ", url);
                     console.error('Error loading model:', error);
                     reject(error);
                 }

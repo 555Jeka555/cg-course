@@ -24,30 +24,69 @@ export class Game {
     private effects: Effect[] = [];
     private bonuses: Bonus[] = [];
 
+    private basicTanksUrl: string[] = [
+        '../models/tanks/basic_yellow_tank.glb',
+        '../models/tanks/basic_green_tank.glb',
+        '../models/tanks/basic_red_tank.glb',
+        '../models/tanks/basic_gray_tank.glb',
+    ]
+
+    private fastTanksUrl: string[] = [
+        '../models/tanks/fast_yellow_tank.glb',
+        '../models/tanks/fast_green_tank.glb',
+        '../models/tanks/fast_red_tank.glb',
+        '../models/tanks/fast_gray_tank.glb',
+    ]
+
+    private armoredTanksUrl: string[] = [
+        '../models/tanks/armored_yellow_tank.glb',
+        '../models/tanks/armored_green_tank.glb',
+        '../models/tanks/armored_red_tank.glb',
+        '../models/tanks/armored_gray_tank.glb',
+    ]
+
+    private superTanksUrl: string[] = [
+        '../models/tanks/super_yellow_tank.glb',
+        '../models/tanks/super_green_tank.glb',
+        '../models/tanks/super_red_tank.glb',
+        '../models/tanks/super_gray_tank.glb',
+    ]
+
     private playerTankType: TankType = new TankType(
         'player',
         2,
         1000,
         1,
+        '../models/tanks/basic_yellow_tank.glb',
     );
     private enemiesTankType: TankType[] = [
         new TankType(
             'basic',
-            0.48,
+            1.9,
             1500,
             1,
+            this.basicTanksUrl[Math.floor(Math.random() * this.basicTanksUrl.length)],
         ),
         new TankType(
             'fast',
-            1,
+            3,
             2000,
             1,
+            this.fastTanksUrl[Math.floor(Math.random() * this.fastTanksUrl.length)],
         ),
         new TankType(
             'armored',
-            0.2,
+            1.5,
             2500,
             3,
+            this.armoredTanksUrl[Math.floor(Math.random() * this.armoredTanksUrl.length)],
+        ),
+        new TankType(
+            'super',
+            1.5,
+            3000,
+            5,
+            this.superTanksUrl[Math.floor(Math.random() * this.superTanksUrl.length)],
         ),
     ]
 
@@ -80,7 +119,6 @@ export class Game {
             new THREE.Vector3(0, 0, -this.fieldSize / 2 + 2),
             true
         );
-        console.log(this.playerTank.mesh)
 
         this.scene.add(this.gameField.mesh);
         this.scene.add(this.playerTank.mesh);
@@ -264,7 +302,7 @@ export class Game {
         // Проверка условий завершения уровня
         if (this.enemiesDestroyed >= this.enemiesTotal) {
             this.levelCompleted = true;
-            console.log('Level completed!');
+            alert('Level completed!');
         }
     }
 
@@ -286,6 +324,7 @@ export class Game {
                     case 'BRICK':
                         block.userData.health--;
                         if (block.userData.health <= 0) {
+                            this.gameField.mesh.remove(block);
                             this.scene.remove(block);
                             this.gameField.grid[gridX][gridZ] = null;
                         }
@@ -300,7 +339,7 @@ export class Game {
                         block.userData.health--;
                         if (block.userData.health <= 0) {
                             this.gameOver = true;
-                            console.log('Game Over - HQ destroyed!');
+                            alert('Game Over - HQ destroyed!');
                         }
                         this.createExplosion(bullet.position);
                         return true;
@@ -333,7 +372,6 @@ export class Game {
                         this.gameOver = true;
                         alert('Game Over - No lives left!');
                     } else {
-                        // Респавн игрока
                         this.playerTank = new Tank(
                             this.scene,
                             this.playerTankType,

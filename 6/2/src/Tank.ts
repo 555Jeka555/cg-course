@@ -35,7 +35,7 @@ export class Tank {
     }
 
     async createModel() {
-        this.mesh = await ModelLoader.loadModel('../models/tanks/basic_tank.glb');
+        this.mesh = await ModelLoader.loadModel(this.tankType.urlModel);
         this.mesh.position.copy(this.position);
         this.mesh.scale.set(0.1, 0.1, 0.1);
         this.scene.add(this.mesh);

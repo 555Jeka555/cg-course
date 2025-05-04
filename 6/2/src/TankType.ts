@@ -4,6 +4,7 @@ export class TankType {
         public speed: number,
         public shootCooldown: number,
         public health: number,
+        public urlModel: string,
     ) {
     }
 }
