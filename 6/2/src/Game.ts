@@ -1,0 +1,389 @@
+import * as THREE from "three";
+import {GameField} from "./GameField.ts";
+import {Tank} from "./Tank.ts";
+import {Bullet} from "./Bullet.ts";
+import {Effect} from "./Effect.ts";
+import {Bonus} from "./Bonus.ts";
+import {TankType} from "./TankType.ts";
+
+export class Game {
+    private scene: THREE.Scene;
+    private camera: THREE.PerspectiveCamera;
+
+    private playerLives: number = 3;
+    private fieldSize: number = 22;
+    private enemiesDestroyed: number = 0;
+    private enemiesTotal: number = 20;
+    private maxEnemiesOnField: number = 4;
+    private gameOver: boolean = false;
+    private levelCompleted: boolean = false;
+    private gameField: GameField;
+    private playerTank: Tank;
+    private enemies: Tank[] = [];
+    private bullets: Bullet[] = [];
+    private effects: Effect[] = [];
+    private bonuses: Bonus[] = [];
+
+    private playerTankType: TankType = new TankType(
+        'player',
+        2,
+        1000,
+        1,
+    );
+    private enemiesTankType: TankType[] = [
+        new TankType(
+            'basic',
+            0.48,
+            1500,
+            1,
+        ),
+        new TankType(
+            'fast',
+            1,
+            2000,
+            1,
+        ),
+        new TankType(
+            'armored',
+            0.2,
+            2500,
+            3,
+        ),
+    ]
+
+    private keys = {
+        up: false,
+        down: false,
+        left: false,
+        right: false,
+        space: false
+    };
+
+    private audio = {
+        shoot: new Audio('../sounds/shoot.mp3'),
+        explosion: new Audio('../sounds/explosion.mp3'),
+        bonus: new Audio('../sounds/bonus.mp3'),
+        engine: new Audio('../sounds/engine.mp3')
+    };
+
+    constructor(
+        scene: THREE.Scene,
+        camera: THREE.PerspectiveCamera,
+    ) {
+        this.scene = scene;
+        this.camera = camera;
+
+        this.gameField = new GameField(this.fieldSize);
+        this.playerTank = new Tank(
+            this.scene,
+            this.playerTankType,
+            new THREE.Vector3(0, 0, -this.fieldSize / 2 + 2),
+            true
+        );
+        console.log(this.playerTank.mesh)
+
+        this.scene.add(this.gameField.mesh);
+        this.scene.add(this.playerTank.mesh);
+
+        // Позиционирование камеры
+        this.camera.position.set(0, 15, -15);
+        this.camera.lookAt(0, 0, 0);
+
+        // Управление
+        this.setupControls();
+
+        // Звуки
+        this.setupAudio();
+    }
+
+    setupControls() {
+        this.keys = {
+            up: false,
+            down: false,
+            left: false,
+            right: false,
+            space: false
+        };
+
+        document.addEventListener('keydown', (e) => {
+            switch (e.code) {
+                case 'ArrowUp':
+                    this.keys.up = true;
+                    break;
+                case 'ArrowDown':
+                    this.keys.down = true;
+                    break;
+                case 'ArrowLeft':
+                    this.keys.left = true;
+                    break;
+                case 'ArrowRight':
+                    this.keys.right = true;
+                    break;
+                case 'Space':
+                    this.keys.space = true;
+                    break;
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            switch (e.code) {
+                case 'ArrowUp':
+                    this.keys.up = false;
+                    break;
+                case 'ArrowDown':
+                    this.keys.down = false;
+                    break;
+                case 'ArrowLeft':
+                    this.keys.left = false;
+                    break;
+                case 'ArrowRight':
+                    this.keys.right = false;
+                    break;
+                case 'Space':
+                    this.keys.space = false;
+                    break;
+            }
+        });
+    }
+
+    setupAudio() {
+        this.audio.engine.loop = true;
+        this.audio.engine.volume = 0.3;
+    }
+
+    spawnEnemy() {
+        if (this.enemies.length >= this.maxEnemiesOnField ||
+            this.enemiesDestroyed >= this.enemiesTotal) {
+            return;
+        }
+
+        const spawnPoints = [
+            new THREE.Vector3(-this.fieldSize / 2 + 2, 0, this.fieldSize / 2 - 2),
+            new THREE.Vector3(this.fieldSize / 2 - 2, 0, this.fieldSize / 2 - 2),
+            new THREE.Vector3(-this.fieldSize / 2 + 2, 0, this.fieldSize / 2 - 6),
+            new THREE.Vector3(this.fieldSize / 2 - 2, 0, this.fieldSize / 2 - 6)
+        ];
+
+        const spawnPoint = spawnPoints[Math.floor(Math.random() * spawnPoints.length)];
+
+        const type = this.enemiesTankType[Math.floor(Math.random() * this.enemiesTankType.length)];
+
+        const enemy = new Tank(this.scene, type, spawnPoint.clone());
+        this.enemies.push(enemy);
+
+        this.scene.add(enemy.mesh);
+    }
+
+    update(deltaTime) {
+        if (this.gameOver || this.levelCompleted) return;
+
+        // Управление танком игрока
+        const moveDirection = new THREE.Vector3();
+        if (this.keys.up) moveDirection.z += 1;
+        if (this.keys.down) moveDirection.z -= 1;
+        if (this.keys.left) moveDirection.x += 1;
+        if (this.keys.right) moveDirection.x -= 1;
+
+        if (moveDirection.length() > 0) {
+            this.playerTank.move(moveDirection.normalize(), deltaTime);
+            if (!this.audio.engine.paused) this.audio.engine.play();
+        } else {
+            this.audio.engine.pause();
+        }
+
+        if (this.keys.space) {
+            const bullet = this.playerTank.shoot();
+            if (bullet) {
+                this.bullets.push(bullet);
+                this.scene.add(bullet.mesh);
+                this.audio.shoot.play();
+            }
+        }
+
+        // ИИ вражеских танков
+        this.enemies.forEach(enemy => {
+            if (enemy.frozen) {
+                return;
+            }
+            // Простое ИИ: движение и стрельба в случайном направлении
+            if (Math.random() < 0.01) {
+                const directions = [
+                    new THREE.Vector3(0, 0, -1),
+                    new THREE.Vector3(0, 0, 1),
+                    new THREE.Vector3(-1, 0, 0),
+                    new THREE.Vector3(1, 0, 0)
+                ];
+                enemy.direction = directions[Math.floor(Math.random() * directions.length)];
+            }
+
+            enemy.move(enemy.direction.clone(), deltaTime);
+
+            if (Math.random() < 0.01) {
+                const bullet = enemy.shoot();
+                if (bullet) {
+                    this.bullets.push(bullet);
+                    this.scene.add(bullet.mesh);
+                    this.audio.shoot.play();
+                }
+            }
+        });
+
+        // Обновление снарядов
+        for (let i = this.bullets.length - 1; i >= 0; i--) {
+            const bullet = this.bullets[i];
+            bullet.update(deltaTime);
+
+            // Проверка столкновений
+            if (this.checkBulletCollision(bullet)) {
+                this.scene.remove(bullet.mesh);
+                this.bullets.splice(i, 1);
+            }
+        }
+
+        // Обновление эффектов
+        for (let i = this.effects.length - 1; i >= 0; i--) {
+            if (this.effects[i].update()) {
+                this.scene.remove(this.effects[i].mesh);
+                this.effects.splice(i, 1);
+            }
+        }
+
+        // Обновление бонусов
+        this.bonuses.forEach(bonus => bonus.update());
+        for (let i = this.bonuses.length - 1; i >= 0; i--) {
+            if (!this.bonuses[i].active) {
+                this.bonuses.splice(i, 1);
+            }
+        }
+
+        // Спавн новых врагов
+        if (Math.random() < 0.01) {
+            this.spawnEnemy();
+        }
+
+        // Проверка условий завершения уровня
+        if (this.enemiesDestroyed >= this.enemiesTotal) {
+            this.levelCompleted = true;
+            console.log('Level completed!');
+        }
+    }
+
+    checkBulletCollision(bullet) {
+        // Проверка выхода за границы
+        if (Math.abs(bullet.position.x) > this.fieldSize / 2 ||
+            Math.abs(bullet.position.z) > this.fieldSize / 2) {
+            return true;
+        }
+
+        // Проверка столкновения с блоками
+        const gridX = Math.floor(bullet.position.x + this.fieldSize / 2);
+        const gridZ = Math.floor(bullet.position.z + this.fieldSize / 2);
+
+        if (gridX >= 0 && gridX < this.fieldSize && gridZ >= 0 && gridZ < this.fieldSize) {
+            const block = this.gameField.grid[gridX][gridZ];
+            if (block && block.userData) {
+                switch (block.userData.type) {
+                    case 'BRICK':
+                        block.userData.health--;
+                        if (block.userData.health <= 0) {
+                            this.scene.remove(block);
+                            this.gameField.grid[gridX][gridZ] = null;
+                        }
+                        this.createExplosion(bullet.position);
+                        return true;
+
+                    case 'ARMOR':
+                        this.createExplosion(bullet.position);
+                        return true;
+
+                    case 'HEADQUARTERS':
+                        block.userData.health--;
+                        if (block.userData.health <= 0) {
+                            this.gameOver = true;
+                            console.log('Game Over - HQ destroyed!');
+                        }
+                        this.createExplosion(bullet.position);
+                        return true;
+                }
+            }
+        }
+
+        // Проверка столкновения с танками
+        const bulletRadius = 0.1;
+        const bulletBox = new THREE.Box3(
+            new THREE.Vector3(
+                bullet.position.x - bulletRadius,
+                bullet.position.y - bulletRadius,
+                bullet.position.z - bulletRadius
+            ),
+            new THREE.Vector3(
+                bullet.position.x + bulletRadius,
+                bullet.position.y + bulletRadius,
+                bullet.position.z + bulletRadius
+            )
+        );
+
+        if (bullet.owner === 'enemy') {
+            // Проверка столкновения с игроком
+            const playerBox = new THREE.Box3().setFromObject(this.playerTank.mesh);
+            if (bulletBox.intersectsBox(playerBox)) {
+                if (!this.playerTank.invulnerable && this.playerTank.takeDamage()) {
+                    this.playerLives--;
+                    if (this.playerLives <= 0) {
+                        this.gameOver = true;
+                        alert('Game Over - No lives left!');
+                    } else {
+                        // Респавн игрока
+                        this.playerTank = new Tank(
+                            this.scene,
+                            this.playerTankType,
+                            new THREE.Vector3(0, 0, -this.fieldSize / 2 + 2),
+                            true
+                        );
+                        this.scene.add(this.playerTank.mesh);
+                    }
+                }
+                this.createExplosion(bullet.position);
+                return true;
+            }
+        } else {
+            // Проверка столкновения с врагами
+            for (let i = this.enemies.length - 1; i >= 0; i--) {
+                const enemy = this.enemies[i];
+                const enemyBox = new THREE.Box3().setFromObject(enemy.mesh);
+                if (bulletBox.intersectsBox(enemyBox)) {
+                    if (enemy.takeDamage()) {
+                        this.enemies.splice(i, 1);
+                        this.enemiesDestroyed++;
+
+                        // С шансом 20% создаем бонус
+                        if (Math.random() < 0.2) {
+                            const bonusTypes = ['STAR', 'HELMET', 'BOMB', 'MACHINE_GUN', 'CLOCK', 'SHIELD'];
+                            const type = bonusTypes[Math.floor(Math.random() * bonusTypes.length)];
+                            const position = new THREE.Vector3(
+                                enemy.position.x,
+                                0,
+                                enemy.position.z
+                            );
+                            const bonus = new Bonus(this.scene, type, position, this.enemies);
+                            this.bonuses.push(bonus);
+                            this.scene.add(bonus.mesh);
+                        }
+                    }
+                    this.createExplosion(bullet.position);
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    createExplosion(position) {
+        const effect = new Effect(position);
+        this.effects.push(effect);
+        this.scene.add(effect.mesh);
+        this.audio.explosion.currentTime = 0;
+        this.audio.explosion.play();
+    }
+}
