@@ -23,7 +23,7 @@ export class Game {
     private effects: Effect[] = [];
     private bonuses: Bonus[] = [];
 
-    private playerPosition = new Vector3(0, 0, 5 - this.fieldSize / 2);
+    private playerSpawnPosition = new Vector3(0, 0, 5 - this.fieldSize / 2);
     private playerLives: number = 3;
     private playerTank: Tank;
 
@@ -115,11 +115,11 @@ export class Game {
         this.scene = scene;
         this.camera = camera;
 
-        this.gameField = new GameField(this.fieldSize, this.playerPosition);
+        this.gameField = new GameField(this.fieldSize, this.playerSpawnPosition);
         this.playerTank = new Tank(
             this.scene,
             this.playerTankType,
-            this.playerPosition,
+            this.playerSpawnPosition,
             true
         );
 
@@ -226,8 +226,14 @@ export class Game {
         if (this.keys.right) moveDirection.x -= 1;
 
         if (moveDirection.length() > 0) {
-            this.playerTank.move(moveDirection.normalize(), deltaTime, this.fieldSize);
-            if (!this.audio.engine.paused) this.audio.engine.play();
+            const newPosition = this.playerTank.position.clone().add(
+                moveDirection.normalize().clone().multiplyScalar(this.playerTankType.speed * deltaTime)
+            );
+
+            if (this.isPositionValid(newPosition, this.playerTank.tankSize)) {
+                this.playerTank.move(moveDirection.normalize(), deltaTime);
+                if (!this.audio.engine.paused) this.audio.engine.play();
+            }
         } else {
             this.audio.engine.pause();
         }
@@ -257,7 +263,13 @@ export class Game {
                 enemy.direction = directions[Math.floor(Math.random() * directions.length)];
             }
 
-            enemy.move(enemy.direction.clone(), deltaTime, this.fieldSize);
+            const nextPosition = enemy.position.clone().add(
+                enemy.direction.clone().multiplyScalar(enemy.tankType.speed * deltaTime)
+            );
+
+            if (this.isPositionValid(nextPosition, enemy.tankSize)) {
+                enemy.move(enemy.direction.clone(), deltaTime);
+            }
 
             if (Math.random() < 0.01) {
                 const bullet = enemy.shoot();
@@ -378,7 +390,7 @@ export class Game {
                         this.playerTank = new Tank(
                             this.scene,
                             this.playerTankType,
-                            new THREE.Vector3(0, 0, -this.fieldSize / 2 + 2),
+                            this.playerSpawnPosition,
                             true
                         );
                         this.scene.add(this.playerTank.mesh);
@@ -426,5 +438,17 @@ export class Game {
         this.scene.add(effect.mesh);
         this.audio.explosion.currentTime = 0;
         this.audio.explosion.play();
+    }
+
+    isPositionValid(position: Vector3, tankSize: number): boolean {
+        const minX = -this.fieldSize / 2 + tankSize * 5;
+        const maxX = this.fieldSize / 2 - tankSize * 5;
+        const minZ = -this.fieldSize / 2 + tankSize * 5;
+        const maxZ = this.fieldSize / 2 - tankSize * 5;
+
+        return position.x >= minX &&
+            position.x <= maxX &&
+            position.z >= minZ &&
+            position.z <= maxZ;
     }
 }

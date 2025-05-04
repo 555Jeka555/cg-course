@@ -17,7 +17,7 @@ export class Tank {
     private isPlayer: boolean;
     private lastShot: number;
 
-    private tankSize: number = 0.12;
+    public tankSize: number = 0.12;
 
     constructor(
         scene: Scene,
@@ -43,19 +43,17 @@ export class Tank {
         this.scene.add(this.mesh);
     }
 
-    move(direction: Vector3, deltaTime: number, fieldSize: number) {
+    move(direction: Vector3, deltaTime: number) {
         const newPosition = this.position.clone().add(
             direction.clone().multiplyScalar(this.tankType.speed * deltaTime)
         );
 
-        if (this.isPositionValid(newPosition, fieldSize)) {
-            this.position.copy(newPosition);
-            this.mesh.position.copy(this.position);
+        this.position.copy(newPosition);
+        this.mesh.position.copy(this.position);
 
-            if (!direction.equals(new THREE.Vector3(0, 0, 0))) {
-                this.direction.copy(direction).normalize();
-                this.mesh.lookAt(this.position.clone().add(this.direction));
-            }
+        if (!direction.equals(new THREE.Vector3(0, 0, 0))) {
+            this.direction.copy(direction).normalize();
+            this.mesh.lookAt(this.position.clone().add(this.direction));
         }
     }
 
@@ -92,17 +90,5 @@ export class Tank {
         this.scene.add(effect.mesh);
 
         this.scene.remove(this.mesh);
-    }
-
-    isPositionValid(position: Vector3, fieldSize: number): boolean {
-        const minX = -fieldSize / 2 + this.tankSize * 5;
-        const maxX = fieldSize / 2 - this.tankSize * 5;
-        const minZ = -fieldSize / 2 + this.tankSize * 5;
-        const maxZ = fieldSize / 2 - this.tankSize * 5;
-
-        return position.x >= minX &&
-            position.x <= maxX &&
-            position.z >= minZ &&
-            position.z <= maxZ;
     }
 }
