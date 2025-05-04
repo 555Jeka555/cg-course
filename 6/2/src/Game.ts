@@ -5,12 +5,12 @@ import {Bullet} from "./Bullet.ts";
 import {Effect} from "./Effect.ts";
 import {Bonus} from "./Bonus.ts";
 import {TankType} from "./TankType.ts";
+import {Vector3} from "three";
 
 export class Game {
     private scene: THREE.Scene;
     private camera: THREE.PerspectiveCamera;
 
-    private playerLives: number = 3;
     private fieldSize: number = 22;
     private enemiesDestroyed: number = 0;
     private enemiesTotal: number = 20;
@@ -18,11 +18,14 @@ export class Game {
     private gameOver: boolean = false;
     private levelCompleted: boolean = false;
     private gameField: GameField;
-    private playerTank: Tank;
     private enemies: Tank[] = [];
     private bullets: Bullet[] = [];
     private effects: Effect[] = [];
     private bonuses: Bonus[] = [];
+
+    private playerPosition = new Vector3(0, 0, 5 - this.fieldSize / 2);
+    private playerLives: number = 3;
+    private playerTank: Tank;
 
     private basicTanksUrl: string[] = [
         '../models/tanks/basic_yellow_tank.glb',
@@ -112,11 +115,11 @@ export class Game {
         this.scene = scene;
         this.camera = camera;
 
-        this.gameField = new GameField(this.fieldSize);
+        this.gameField = new GameField(this.fieldSize, this.playerPosition);
         this.playerTank = new Tank(
             this.scene,
             this.playerTankType,
-            new THREE.Vector3(0, 0, -this.fieldSize / 2 + 2),
+            this.playerPosition,
             true
         );
 
@@ -223,7 +226,7 @@ export class Game {
         if (this.keys.right) moveDirection.x -= 1;
 
         if (moveDirection.length() > 0) {
-            this.playerTank.move(moveDirection.normalize(), deltaTime);
+            this.playerTank.move(moveDirection.normalize(), deltaTime, this.fieldSize);
             if (!this.audio.engine.paused) this.audio.engine.play();
         } else {
             this.audio.engine.pause();
@@ -254,7 +257,7 @@ export class Game {
                 enemy.direction = directions[Math.floor(Math.random() * directions.length)];
             }
 
-            enemy.move(enemy.direction.clone(), deltaTime);
+            enemy.move(enemy.direction.clone(), deltaTime, this.fieldSize);
 
             if (Math.random() < 0.01) {
                 const bullet = enemy.shoot();
