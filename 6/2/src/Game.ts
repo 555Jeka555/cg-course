@@ -14,7 +14,7 @@ export class Game {
     private fieldSize: number = 22;
     private enemiesDestroyed: number = 0;
     private enemiesTotal: number = 20;
-    private maxEnemiesOnField: number = 4;
+    private maxEnemiesOnField: number = 0;
     private gameOver: boolean = false;
     private levelCompleted: boolean = false;
     private gameField: GameField;
@@ -226,11 +226,11 @@ export class Game {
         if (this.keys.right) moveDirection.x -= 1;
 
         if (moveDirection.length() > 0) {
-            const newPosition = this.playerTank.position.clone().add(
+            const nextPosition = this.playerTank.position.clone().add(
                 moveDirection.normalize().clone().multiplyScalar(this.playerTankType.speed * deltaTime)
             );
 
-            if (this.isPositionValid(newPosition, this.playerTank.tankSize)) {
+            if (!this.isPositionBlocked(nextPosition, this.playerTank.tankSize) && this.isPositionValid(nextPosition, this.playerTank.tankSize)) {
                 this.playerTank.move(moveDirection.normalize(), deltaTime);
                 if (!this.audio.engine.paused) this.audio.engine.play();
             }
@@ -329,8 +329,8 @@ export class Game {
         }
 
         // Проверка столкновения с блоками
-        const gridX = Math.floor(bullet.position.x + this.fieldSize / 2);
-        const gridZ = Math.floor(bullet.position.z + this.fieldSize / 2);
+        const gridX = Math.floor((bullet.position.x + this.fieldSize / 2 - this.gameField.blockSize ) / 2);
+        const gridZ = Math.floor((bullet.position.z + this.fieldSize / 2 - this.gameField.blockSize) / 2);
 
         if (gridX >= 0 && gridX < this.fieldSize && gridZ >= 0 && gridZ < this.fieldSize) {
             const block = this.gameField.grid[gridX][gridZ];
@@ -438,6 +438,37 @@ export class Game {
         this.scene.add(effect.mesh);
         this.audio.explosion.currentTime = 0;
         this.audio.explosion.play();
+    }
+
+    isPositionBlocked(position: THREE.Vector3, tankSize: number): boolean {
+        // halfSize - расстояние от центра до края танка
+        const halfSize = tankSize / 2;
+
+        // Проверяем 4 угла танка
+        const checkPoints = [
+            new THREE.Vector3(position.x - halfSize, 0, position.z - halfSize),
+            new THREE.Vector3(position.x - halfSize, 0, position.z + halfSize),
+            new THREE.Vector3(position.x + halfSize, 0, position.z - halfSize),
+            new THREE.Vector3(position.x + halfSize, 0, position.z + halfSize)
+        ];
+
+        for (const point of checkPoints) {
+            // Индекс клетки поля (предполагаем, что размер клетки = 2)
+            const gridX = Math.floor((point.x + this.fieldSize / 2) / 2);
+            const gridZ = Math.floor((point.z + this.fieldSize / 2) / 2);
+
+            // Проверяем, что точка в пределах поля
+            if (
+                gridX >= 0 && gridX < this.fieldSize &&
+                gridZ >= 0 && gridZ < this.fieldSize
+            ) {
+                const block = this.gameField.grid[gridX][gridZ];
+                if (block && block.userData && block.userData.type === 'BRICK') {
+                    return true; // Есть кирпичная стена - заблокировано!
+                }
+            }
+        }
+        return false; // Нет блокировки
     }
 
     isPositionValid(position: Vector3, tankSize: number): boolean {

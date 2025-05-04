@@ -18,7 +18,7 @@ export class GameField {
         TREE: 5
     };
 
-    private blockSize: number = 0.12;
+    public blockSize: number = 0.12;
 
     constructor(size: number, playerPosition: Vector3) {
         this.size = size;
