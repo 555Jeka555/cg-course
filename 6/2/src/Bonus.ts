@@ -49,7 +49,7 @@ export class Bonus {
             case BONUS_TYPE.STAR:
                 const starModel = await ModelLoader.loadModel('../models/bonuses/star.glb');
                 symbol = starModel;
-                symbol.scale.set(this.bonusSize, this.bonusSize, this.bonusSize); // Масштабируем при необходимости
+                symbol.scale.set(this.bonusSize, this.bonusSize, this.bonusSize);
                 break;
 
             case BONUS_TYPE.HELMET:
