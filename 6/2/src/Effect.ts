@@ -55,7 +55,6 @@ export class Effect {
         const elapsed = Date.now() - this.birthTime;
         const progress = elapsed / this.lifetime;
 
-        // Уменьшение размера и прозрачности со временем
         this.mesh.children.forEach(child => {
             if (child instanceof THREE.Points) {
                 const material = child.material as THREE.PointsMaterial;

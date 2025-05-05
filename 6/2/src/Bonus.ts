@@ -3,82 +3,89 @@ import {Scene, Vector3} from "three";
 import {Tank} from "./Tank.ts";
 import {ModelLoader} from "./ModelLoader.ts";
 
+export enum BONUS_TYPE {
+    BOMB,
+    CLOCK,
+    HELMET,
+    MACHINE_GUN,
+    SHIELD,
+    STAR,
+}
+
 export class Bonus {
     public position: Vector3;
     public mesh: THREE.Group = new THREE.Group();
     public active: boolean;
 
     private scene: Scene;
-    private type: string;
+    private type: BONUS_TYPE;
     private birthTime: number;
     private lifetime: number;
-    private enemies: Tank[] = [];
 
-    constructor(scene: Scene, type: string, position: Vector3, enemies: Tank[]) {
+    public bonusSize: number = 0.12;
+
+    constructor(scene: Scene, type: BONUS_TYPE, position: Vector3) {
         this.scene = scene;
         this.type = type;
         this.position = position;
         this.active = true;
         this.createModel().then(model => {
             this.mesh = model;
+            this.scene.add(this.mesh);
         });
         this.birthTime = Date.now();
         this.lifetime = 10000;
-        this.enemies = enemies;
     }
 
     async createModel(): Promise<THREE.Group> {
         const group = new THREE.Group();
 
-        // Основание бонуса (синхронная часть)
         const baseGeometry = new THREE.CylinderGeometry(0.5, 0.5, 0.2, 8);
         const baseMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
         const base = new THREE.Mesh(baseGeometry, baseMaterial);
         group.add(base);
 
-        // Символ бонуса (асинхронная часть)
         let symbol: THREE.Object3D;
         switch(this.type) {
-            case 'STAR':
-                try {
-                    const starModel = await ModelLoader.loadModel('../models/bonuses/star.glb');
-                    symbol = starModel;
-                    symbol.scale.set(0.3, 0.3, 0.3); // Масштабируем при необходимости
-                } catch (error) {
-                    console.error('Failed to load star model, using fallback:', error);
-                    // Фолбэк на простую геометрию
-                    const starGeometry = new THREE.TetrahedronGeometry(0.3);
-                    const starMaterial = new THREE.MeshStandardMaterial({ color: 0xffff00 });
-                    symbol = new THREE.Mesh(starGeometry, starMaterial);
-                }
+            case BONUS_TYPE.STAR:
+                const starModel = await ModelLoader.loadModel('../models/bonuses/star.glb');
+                symbol = starModel;
+                symbol.scale.set(this.bonusSize, this.bonusSize, this.bonusSize); // Масштабируем при необходимости
                 break;
 
-            case 'HELMET':
-                try {
-                    const helmetModel = await ModelLoader.loadModel('../models/bonuses/helmet.glb');
-                    symbol = helmetModel;
-                    symbol.scale.set(0.3, 0.3, 0.3);
-                } catch (error) {
-                    console.error('Failed to load helmet model, using fallback:', error);
-                    // Фолбэк на сферу
-                    const helmetGeometry = new THREE.SphereGeometry(0.3);
-                    const helmetMaterial = new THREE.MeshStandardMaterial({ color: 0x888888 });
-                    symbol = new THREE.Mesh(helmetGeometry, helmetMaterial);
-                }
+            case BONUS_TYPE.HELMET:
+                const helmetModel = await ModelLoader.loadModel('../models/bonuses/helmet.glb');
+                symbol = helmetModel;
+                symbol.scale.set(this.bonusSize, this.bonusSize, this.bonusSize);
                 break;
 
-            default:
-                // Дефолтный символ
-                const defaultGeometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
-                const defaultMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-                symbol = new THREE.Mesh(defaultGeometry, defaultMaterial);
+            case BONUS_TYPE.BOMB:
+                const bombModel = await ModelLoader.loadModel('../models/bonuses/bomb.glb');
+                symbol = bombModel;
+                symbol.scale.set(this.bonusSize, this.bonusSize, this.bonusSize);
+                break;
+
+            case BONUS_TYPE.CLOCK:
+                const clockModel = await ModelLoader.loadModel('../models/bonuses/clock.glb');
+                symbol = clockModel;
+                symbol.scale.set(this.bonusSize, this.bonusSize, this.bonusSize);
+                break;
+
+            case BONUS_TYPE.MACHINE_GUN:
+                const machineGunModel = await ModelLoader.loadModel('../models/bonuses/machine_gun.glb');
+                symbol = machineGunModel;
+                symbol.scale.set(this.bonusSize, this.bonusSize, this.bonusSize);
+                break;
+
+            case BONUS_TYPE.SHIELD:
+                const shieldGunModel = await ModelLoader.loadModel('../models/bonuses/shield.glb');
+                symbol = shieldGunModel;
+                symbol.scale.set(this.bonusSize, this.bonusSize, this.bonusSize);
+                break;
         }
 
-        // Позиционируем символ
         symbol.position.y = 0.3;
         group.add(symbol);
-
-        // Позиционируем всю группу
         group.position.copy(this.position);
 
         return group;
@@ -96,36 +103,51 @@ export class Bonus {
         }
     }
 
-    applyEffect(game) {
+     async applyEffect(game) {
         switch(this.type) {
-            case 'STAR':
+            case BONUS_TYPE.STAR:
+                console.log("Star", game.playerLives)
                 game.playerLives++;
+                console.log("Star", game.playerLives)
                 break;
-            case 'HELMET':
+            case BONUS_TYPE.HELMET:
+                console.log("HELMET", game.playerTank.invulnerable)
                 game.playerTank.invulnerable = true;
+                console.log("HELMET", game.playerTank.invulnerable)
+
                 setTimeout(() => {
                     game.playerTank.invulnerable = false;
                 }, 10000);
                 break;
-            case 'BOMB':
-                this.enemies.forEach(enemy => {
+            case BONUS_TYPE.BOMB:
+                game.enemies.forEach(enemy => {
                     enemy.tankType.health = 0;
                     enemy.takeDamage();
                 });
+                game.enemiesDestroyed += game.enemies.length;
+                game.enemies = [];
                 break;
-            case 'MACHINE_GUN':
-                game.playerTank.shootCooldown = 300;
+            case BONUS_TYPE.MACHINE_GUN:
+                console.log("MACHINE_GUN", game.playerTank.tankType.shootCooldown)
+                game.playerTank.tankType.shootCooldown = 300;
+                console.log("MACHINE_GUN", game.playerTank.tankType.shootCooldown)
                 setTimeout(() => {
-                    game.playerTank.shootCooldown = 1000;
+                    game.playerTank.tankType.shootCooldown = 1000;
                 }, 10000);
                 break;
-            case 'CLOCK':
-                this.enemies.forEach(enemy => {
+            case BONUS_TYPE.CLOCK:
+                game.enemies.forEach(enemy => {
                     enemy.frozen = true;
                     setTimeout(() => {
                         enemy.frozen = false;
                     }, 5000);
                 });
+
+                console.log("CLOCK", game.enemies)
+
+                break;
+            case BONUS_TYPE.SHIELD:
+                await game.gameField.addProtectionAroundHQ(); // todo сделать нормальный публичный метод чтобы возращать мешы
                 break;
         }
 

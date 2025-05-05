@@ -31,12 +31,10 @@ export class GameField {
     }
 
     async createField() {
-        // Создание текстуры земли
         const groundTexture = new THREE.TextureLoader().load('../textures/grass.jpg');
         groundTexture.wrapS = groundTexture.wrapT = THREE.RepeatWrapping;
         groundTexture.repeat.set(this.size / 2, this.size / 2);
 
-        // Создание плоскости земли
         const groundGeometry = new THREE.PlaneGeometry(this.size, this.size);
         const groundMaterial = new THREE.MeshStandardMaterial({
             map: groundTexture,
@@ -54,11 +52,11 @@ export class GameField {
 
         for (let x = 0; x < this.size / 2 - 1; x++) {
             for (let z = 0; z < this.size / 2 - 1; z++) {
-                if (Math.random() < 0.2) {
+                if (Math.random() < 0.18) {
                     this.addBlock(x, z, BLOCK_TYPE.BRICK);
-                } else if (Math.random() < 0.16) {
-                    this.addBlock(x, z, BLOCK_TYPE.WATER);
                 } else if (Math.random() < 0.14) {
+                    this.addBlock(x, z, BLOCK_TYPE.WATER);
+                } else if (Math.random() < 0.12) {
                     this.addBlock(x, z, BLOCK_TYPE.ARMOR);
                 }
                 else if (Math.random() < 0.2) {
@@ -80,17 +78,14 @@ export class GameField {
             return;
         }
 
-        // Реализация добавления различных блоков
         let block;
         switch(type) {
             case BLOCK_TYPE.BRICK:
                 block = await ModelLoader.loadModel('../models/blocks/brick_wall.glb');
 
-                // Настраиваем масштаб и позицию
                 block.scale.set(this.blockSize, this.blockSize, this.blockSize);
-                block.position.set(xPos - this.size/2, this.blockSize * 4, zPos - this.size/2);
+                block.position.set(xPos - this.size/2, this.blockSize * 8, zPos - this.size/2);
 
-                // Добавляем пользовательские данные
                 block.userData = {
                     type: BLOCK_TYPE.BRICK,
                     health: 3,
@@ -117,8 +112,8 @@ export class GameField {
             case BLOCK_TYPE.ARMOR:
                 block = await ModelLoader.loadModel('../models/blocks/armor.glb');
 
-                block.scale.set(this.blockSize, this.blockSize*1.5, this.blockSize);
-                block.position.set(xPos - this.size/2, this.blockSize/2, zPos - this.size/2);
+                block.scale.set(this.blockSize, this.blockSize, this.blockSize);
+                block.position.set(xPos - this.size/2, this.blockSize * 8, zPos - this.size/2);
 
                 block.userData = { type: BLOCK_TYPE.ARMOR };
 
@@ -129,7 +124,7 @@ export class GameField {
                 block = await ModelLoader.loadModel('../models/blocks/tree.glb');
 
                 block.scale.set(this.blockSize, this.blockSize, this.blockSize);
-                block.position.set(xPos - this.size/2, this.blockSize/2, zPos - this.size/2);
+                block.position.set(xPos - this.size/2, this.blockSize * 8, zPos - this.size/2);
 
                 block.userData = {
                     type: BLOCK_TYPE.TREE,
@@ -156,7 +151,7 @@ export class GameField {
         await this.addProtectionAroundHQ();
     }
 
-    async addProtectionAroundHQ() {
+    public async addProtectionAroundHQ() {
         await this.addBlock(4, 0, BLOCK_TYPE.BRICK);
         await this.addBlock(4, 1, BLOCK_TYPE.BRICK);
         await this.addBlock(5, 1, BLOCK_TYPE.BRICK);

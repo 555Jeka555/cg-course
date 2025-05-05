@@ -3,7 +3,7 @@ import {BLOCK_TYPE, GameField} from "./GameField.ts";
 import {Tank} from "./Tank.ts";
 import {Bullet} from "./Bullet.ts";
 import {Effect} from "./Effect.ts";
-import {Bonus} from "./Bonus.ts";
+import {Bonus, BONUS_TYPE} from "./Bonus.ts";
 import {TankType} from "./TankType.ts";
 import {Vector3} from "three";
 
@@ -214,6 +214,13 @@ export class Game {
     update(deltaTime) {
         if (this.gameOver || this.levelCompleted) return;
 
+        const bonus = this.isPositionBonus(this.playerTank.position, this.playerTank.tankSize);
+        if (bonus) {
+            console.log("bonus", bonus)
+            bonus.applyEffect(this);
+            if (!this.audio.bonus.paused) this.audio.bonus.play();
+        }
+
         const moveDirection = new THREE.Vector3();
         if (this.keys.up) moveDirection.z += 1;
         if (this.keys.down) moveDirection.z -= 1;
@@ -276,19 +283,16 @@ export class Game {
             }
         });
 
-        // Обновление снарядов
         for (let i = this.bullets.length - 1; i >= 0; i--) {
             const bullet = this.bullets[i];
             bullet.update(deltaTime);
 
-            // Проверка столкновений
             if (this.checkBulletCollision(bullet)) {
                 this.scene.remove(bullet.mesh);
                 this.bullets.splice(i, 1);
             }
         }
 
-        // Обновление эффектов
         for (let i = this.effects.length - 1; i >= 0; i--) {
             if (this.effects[i].update()) {
                 this.scene.remove(this.effects[i].mesh);
@@ -296,7 +300,6 @@ export class Game {
             }
         }
 
-        // Обновление бонусов
         this.bonuses.forEach(bonus => bonus.update());
         for (let i = this.bonuses.length - 1; i >= 0; i--) {
             if (!this.bonuses[i].active) {
@@ -304,12 +307,10 @@ export class Game {
             }
         }
 
-        // Спавн новых врагов
         if (Math.random() < 0.01) {
             this.spawnEnemy();
         }
 
-        // Проверка условий завершения уровня
         if (this.enemiesDestroyed >= this.enemiesTotal) {
             this.levelCompleted = true;
             alert('Level completed!');
@@ -365,7 +366,6 @@ export class Game {
             }
         }
 
-        // Проверка столкновения с танками
         const bulletRadius = 0.1;
         const bulletBox = new THREE.Box3(
             new THREE.Vector3(
@@ -411,19 +411,27 @@ export class Game {
                         this.enemiesDestroyed++;
                         let ran = Math.random();
 
-                        console.log(ran)
-
-                        if (ran < 0.9) {
-                            const bonusTypes = ['STAR', 'HELMET', 'BOMB', 'MACHINE_GUN', 'CLOCK', 'SHIELD'];
+                        if (ran < 1) {
+                            const bonusTypes = [
+                                BONUS_TYPE.STAR,
+                                BONUS_TYPE.HELMET,
+                                BONUS_TYPE.BOMB,
+                                BONUS_TYPE.MACHINE_GUN,
+                                BONUS_TYPE.CLOCK,
+                                // BONUS_TYPE.SHIELD,
+                            ];
                             const type = bonusTypes[Math.floor(Math.random() * bonusTypes.length)];
                             const position = new THREE.Vector3(
-                                enemy.position.x,
-                                0,
-                                enemy.position.z
+                                Math.floor(enemy.position.x),
+                                enemy.position.y,
+                                Math.floor(enemy.position.z),
                             );
-                            const bonus = new Bonus(this.scene, type, position, this.enemies);
+                            const bonus = new Bonus(this.scene, type, position);
                             this.bonuses.push(bonus);
-                            this.scene.add(bonus.mesh);
+                            if (this.gameField.grid[Math.floor(bonus.position.x)] === undefined) {
+                                this.gameField.grid[Math.floor(bonus.position.x)] = [];
+                            }
+                            this.gameField.grid[Math.floor(bonus.position.x)][Math.floor(bonus.position.z)] = bonus;
                         }
                     }
                     this.createExplosion(bullet.position);
@@ -444,10 +452,8 @@ export class Game {
     }
 
     isPositionBlocked(position: THREE.Vector3, tankSize: number): boolean {
-        // halfSize - расстояние от центра до края танка
         const halfSize = tankSize / 2;
 
-        // Проверяем 4 угла танка
         const checkPoints = [
             new THREE.Vector3(position.x - halfSize, 0, position.z - halfSize),
             new THREE.Vector3(position.x - halfSize, 0, position.z + halfSize),
@@ -456,11 +462,9 @@ export class Game {
         ];
 
         for (const point of checkPoints) {
-            // Индекс клетки поля (предполагаем, что размер клетки = 2)
             const gridX = Math.floor((point.x + this.fieldSize / 2) / 2);
             const gridZ = Math.floor((point.z + this.fieldSize / 2) / 2);
 
-            // Проверяем, что точка в пределах поля
             if (
                 gridX >= 0 && gridX < this.fieldSize &&
                 gridZ >= 0 && gridZ < this.fieldSize
@@ -470,14 +474,35 @@ export class Game {
                     block.userData &&
                     (block.userData.type === BLOCK_TYPE.BRICK ||
                         block.userData.type === BLOCK_TYPE.WATER ||
-                        block.userData.type === BLOCK_TYPE.ARMOR
+                        block.userData.type === BLOCK_TYPE.ARMOR ||
+                        block.userData.type === BLOCK_TYPE.TREE
                     )
                 ) {
-                    return true; // Есть кирпичная стена - заблокировано!
+                    return true;
                 }
             }
         }
         return false;
+    }
+
+    isPositionBonus(position: THREE.Vector3, tankSize: number): Bonus | null {
+        // Радиус обнаружения бонуса (можно настроить)
+        const detectionRadius = 1;
+
+        // Проверяем все активные бонусы
+        for (const bonus of this.bonuses) {
+            if (!bonus.active) continue;
+
+            // Рассчитываем расстояние между танком и бонусом
+            const distance = position.distanceTo(bonus.position);
+
+            // Если бонус в радиусе обнаружения
+            if (distance <= detectionRadius) {
+                return bonus;
+            }
+        }
+
+        return null;
     }
 
     isPositionValid(position: Vector3, tankSize: number): boolean {
