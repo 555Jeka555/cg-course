@@ -56,7 +56,7 @@ export class App {
 
     private initLight() {
         this.light = new THREE.PointLight(0xffffff, 100, 100);
-        this.light.position.set(5, 8, 5);
+        this.light.position.set(3, 5, 3);
         this.light.castShadow = true;
         this.light.shadow.mapSize.width = 2048;
         this.light.shadow.mapSize.height = 2048;
@@ -141,7 +141,7 @@ export class App {
         void main() {
             vNormal = normalize(normalMatrix * normal);
             vec4 worldPosition = modelMatrix * vec4(position, 1.0);
-            vWorldPosition = worldPosition.xyz;
+            vWorldPosition = worldPosition.xyz;  // Мировую коордианту в фрагментный шейдер
             vShadowCoord = shadowMatrix * worldPosition;
             gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
@@ -167,9 +167,10 @@ export class App {
        
         
         float calculateShadow() {
-            vec3 shadowCoord = vShadowCoord.xyz / vShadowCoord.w;
+            vec3 shadowCoord = vShadowCoord.xyz / vShadowCoord.w; // Преобразование из w-координата
             shadowCoord = shadowCoord * 0.5 + 0.5;
             
+            // Если точка вне диапазона глубины - тени нет
             if (shadowCoord.z > 1.0 || shadowCoord.z < 0.0) {
                 return 1.0;
             }
@@ -178,39 +179,37 @@ export class App {
             float radius = shadowRadius;
             
             for (int i = 0; i < samples; i++) {
-                float angle = float(i) * 3.14159 * 2.0 / float(samples);
-                vec2 offset = vec2(cos(angle), sin(angle)) * radius;
-                vec2 sampleCoord = shadowCoord.xy + offset;
+                float angle = float(i) * 3.14159 * 2.0 / float(samples); // Угол смещения
+                vec2 offset = vec2(cos(angle), sin(angle)) * radius;     // Смещение по окружности радиусом shadowRadius
+                vec2 sampleCoord = shadowCoord.xy + offset;              // Координата для выборки из shadow map
                 
-                float depth = texture2D(shadowMap, sampleCoord).x;
+                float depth = texture2D(shadowMap, sampleCoord).x;       // Глубина из карты теней
+                
+                // Если текущая глубина больше глубины из карты, значит точка в тени
                 if (shadowCoord.z - 0.005 > depth) {
                     sum += 1.0;
                 }
             }
             
+            // Коэффициент освещённости: 1 - нет тени, 0 - полная тень
             return 1.0 - (sum / float(samples));
         }
         
         void main() {
-            // Ambient
             vec3 ambient = lightColor * materialAmbient;
             
-            // Diffuse 
             vec3 norm = normalize(vNormal);
             vec3 lightDir = normalize(lightPos - vWorldPosition);
             float diff = max(dot(norm, lightDir), 0.0);
             vec3 diffuse = lightColor * (diff * materialDiffuse);
             
-            // Specular
             vec3 viewDir = normalize(viewPos - vWorldPosition);
             vec3 reflectDir = reflect(-lightDir, norm);
             float spec = pow(max(dot(viewDir, reflectDir), 0.0), materialShininess);
             vec3 specular = lightColor * (spec * materialSpecular);
             
-            // Shadow
             float shadow = calculateShadow();
             
-            // Combine with shadow affecting only diffuse and specular
             vec3 result = ambient + shadow * (diffuse * 0.7 + specular * 0.3);
             gl_FragColor = vec4(result, 1.0);
         }
