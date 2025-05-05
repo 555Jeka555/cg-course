@@ -72,7 +72,7 @@ void main() {
     // Specular
     vec3 viewDir = normalize(viewPos - FragPos);   // направление от фрагмента к камере.
     vec3 reflectDir = reflect(-lightDir, norm);    // отражённый вектор света относительно нормали.
-    float spec = pow(max(dot(viewDir, reflectDir), 0.0), materialShininess);    // Вычисляем угол между взглядом и отражённым светом. Возводим в степень materialShininess для контроля резкости блика.
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), materialShininess);    // Вычисление угла между взглядом и отражённым светом. Возведение в степень materialShininess для контроля резкости блика.
     vec3 specular = lightSpecular * (spec * materialSpecular);
 
     vec3 result = ambient + diffuse + specular;
