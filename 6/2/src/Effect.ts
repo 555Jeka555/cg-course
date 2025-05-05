@@ -16,7 +16,6 @@ export class Effect {
     private createEffect(): THREE.Group {
         const group = new THREE.Group();
 
-        // Частицы взрыва
         const particleCount = 100;
         const particles = new THREE.BufferGeometry();
         const positions = new Float32Array(particleCount * 3);
@@ -43,7 +42,6 @@ export class Effect {
         const particleSystem = new THREE.Points(particles, particleMaterial);
         group.add(particleSystem);
 
-        // Свет от взрыва
         const light = new THREE.PointLight(0xff6600, 2, 5, 2);
         group.add(light);
 

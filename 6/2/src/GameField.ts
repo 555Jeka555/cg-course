@@ -3,11 +3,9 @@ import {ModelLoader} from "./ModelLoader.ts";
 import {Vector3} from "three";
 
 export enum BLOCK_TYPE {
-    GROUND,
     BRICK,
     WATER,
     ARMOR,
-    ICE ,
     TREE,
     HEADQUARTERS,
 }
@@ -64,6 +62,27 @@ export class GameField {
                 }
             }
         }
+    }
+
+    async addHeadquarters() {
+        this.headquarters = await ModelLoader.loadModel('../models/headquarters.glb');
+
+        this.headquarters.scale.set(0.1, 0.1, 0.1);
+
+        this.headquarters.position.set(0, 0.75, 1 - this.size / 2);
+        this.headquarters.userData = { type: BLOCK_TYPE.HEADQUARTERS, health: 1 };
+        this.mesh.add(this.headquarters);
+        this.grid[5][0] = this.headquarters;
+
+        await this.addProtectionAroundHQ();
+    }
+
+    public async addProtectionAroundHQ() {
+        await this.addBlock(4, 0, BLOCK_TYPE.BRICK);
+        await this.addBlock(4, 1, BLOCK_TYPE.BRICK);
+        await this.addBlock(5, 1, BLOCK_TYPE.BRICK);
+        await this.addBlock(6, 1, BLOCK_TYPE.BRICK);
+        await this.addBlock(6, 0, BLOCK_TYPE.BRICK);
     }
 
     async addBlock(x: number, z: number, type) {
@@ -136,26 +155,5 @@ export class GameField {
                 this.grid[x][z] = block;
                 break;
         }
-    }
-
-    async addHeadquarters() {
-        this.headquarters = await ModelLoader.loadModel('../models/headquarters.glb');
-
-        this.headquarters.scale.set(0.1, 0.1, 0.1);
-
-        this.headquarters.position.set(0, 0.75, 1 - this.size / 2);
-        this.headquarters.userData = { type: BLOCK_TYPE.HEADQUARTERS, health: 1 };
-        this.mesh.add(this.headquarters);
-        this.grid[5][0] = this.headquarters;
-
-        await this.addProtectionAroundHQ();
-    }
-
-    public async addProtectionAroundHQ() {
-        await this.addBlock(4, 0, BLOCK_TYPE.BRICK);
-        await this.addBlock(4, 1, BLOCK_TYPE.BRICK);
-        await this.addBlock(5, 1, BLOCK_TYPE.BRICK);
-        await this.addBlock(6, 1, BLOCK_TYPE.BRICK);
-        await this.addBlock(6, 0, BLOCK_TYPE.BRICK);
     }
 }

@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import {Scene, Vector3} from "three";
 import {TankType} from "./TankType.ts";
-import {Bullet} from "./Bullet.ts";
+import {Bullet, OWNER_TEST, OWNER_TYPE} from "./Bullet.ts";
 import {Effect} from "./Effect.ts";
 import {ModelLoader} from "./ModelLoader.ts";
 
@@ -69,7 +69,7 @@ export class Tank {
             return new Bullet(
                 bulletPosition,
                 this.direction.clone(),
-                this.isPlayer ? 'player' : 'enemy'
+                this.isPlayer ? OWNER_TYPE.PLAYER : OWNER_TYPE.ENEMY
             );
         }
         return null;

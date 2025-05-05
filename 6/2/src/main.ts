@@ -19,7 +19,7 @@ function main(): void {
 
     let lastTime = 0;
     function animate(time) {
-        const deltaTime = (time - lastTime) / 1000; // в секундах
+        const deltaTime = (time - lastTime) / 1000;
         lastTime = time;
 
         game.update(deltaTime);

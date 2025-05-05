@@ -1,20 +1,23 @@
 import * as THREE from "three";
+import {Vector3} from "three";
 import {BLOCK_TYPE, GameField} from "./GameField.ts";
 import {Tank} from "./Tank.ts";
-import {Bullet} from "./Bullet.ts";
+import {Bullet, OWNER_TYPE} from "./Bullet.ts";
 import {Effect} from "./Effect.ts";
 import {Bonus, BONUS_TYPE} from "./Bonus.ts";
 import {TankType} from "./TankType.ts";
-import {Vector3} from "three";
 
 export class Game {
     private scene: THREE.Scene;
     private camera: THREE.PerspectiveCamera;
 
-    private fieldSize: number = 22;
+    static readonly FIELD_SIZE = 22;
+    static readonly ENEMIES_TOTAL = 20;
+    static readonly MAX_ENEMIES_ON_FIELD = 5;
+    static readonly BONUS_CHANCE = 0.9;
+
     private enemiesDestroyed: number = 0;
-    private enemiesTotal: number = 20;
-    private maxEnemiesOnField: number = 5;
+
     private gameOver: boolean = false;
     private levelCompleted: boolean = false;
     private gameField: GameField;
@@ -23,7 +26,7 @@ export class Game {
     private effects: Effect[] = [];
     private bonuses: Bonus[] = [];
 
-    private playerSpawnPosition = new Vector3(0, 0, 5 - this.fieldSize / 2);
+    private playerSpawnPosition = new Vector3(0, 0, 5 - Game.FIELD_SIZE / 2);
     private playerLives: number = 3;
     private playerTank: Tank;
 
@@ -115,7 +118,7 @@ export class Game {
         this.scene = scene;
         this.camera = camera;
 
-        this.gameField = new GameField(this.fieldSize, this.playerSpawnPosition);
+        this.gameField = new GameField(Game.FIELD_SIZE, this.playerSpawnPosition);
         this.playerTank = new Tank(
             this.scene,
             this.playerTankType,
@@ -189,16 +192,16 @@ export class Game {
     }
 
     spawnEnemy() {
-        if (this.enemies.length >= this.maxEnemiesOnField ||
-            this.enemiesDestroyed >= this.enemiesTotal) {
+        if (this.enemies.length >= Game.MAX_ENEMIES_ON_FIELD ||
+            this.enemiesDestroyed >= Game.ENEMIES_TOTAL) {
             return;
         }
 
         const spawnPoints = [
-            new THREE.Vector3(-this.fieldSize / 2 + 2, 0, this.fieldSize / 2 - 2),
-            new THREE.Vector3(this.fieldSize / 2 - 2, 0, this.fieldSize / 2 - 2),
-            new THREE.Vector3(-this.fieldSize / 2 + 2, 0, this.fieldSize / 2 - 6),
-            new THREE.Vector3(this.fieldSize / 2 - 2, 0, this.fieldSize / 2 - 6)
+            new THREE.Vector3(-Game.FIELD_SIZE / 2 + 2, 0, Game.FIELD_SIZE / 2 - 2),
+            new THREE.Vector3(Game.FIELD_SIZE / 2 - 2, 0, Game.FIELD_SIZE / 2 - 2),
+            new THREE.Vector3(-Game.FIELD_SIZE / 2 + 2, 0, Game.FIELD_SIZE / 2 - 6),
+            new THREE.Vector3(Game.FIELD_SIZE / 2 - 2, 0, Game.FIELD_SIZE / 2 - 6)
         ];
 
         const spawnPoint = spawnPoints[Math.floor(Math.random() * spawnPoints.length)];
@@ -211,16 +214,28 @@ export class Game {
         this.scene.add(enemy.mesh);
     }
 
-    update(deltaTime) {
+    update(deltaTime: number) {
         if (this.gameOver || this.levelCompleted) return;
 
-        const bonus = this.isPositionBonus(this.playerTank.position, this.playerTank.tankSize);
-        if (bonus) {
-            console.log("bonus", bonus)
-            bonus.applyEffect(this);
-            if (!this.audio.bonus.paused) this.audio.bonus.play();
-        }
+        this.checkBonusCollision();
+        this.movePlayerMovement(deltaTime);
+        this.playerShoot();
+        this.updateEnemies(deltaTime);
+        this.updateBullets(deltaTime);
+        this.updateEffects();
+        this.updateBonuses();
+        this.checkWin();
+    }
 
+    checkBonusCollision() {
+        const bonus = this.isPositionBonus(this.playerTank.position);
+        if (bonus) {
+            bonus.applyEffect(this);
+            this.audio.bonus.play();
+        }
+    }
+
+    movePlayerMovement(deltaTime: number) {
         const moveDirection = new THREE.Vector3();
         if (this.keys.up) moveDirection.z += 1;
         if (this.keys.down) moveDirection.z -= 1;
@@ -239,7 +254,9 @@ export class Game {
         } else {
             this.audio.engine.pause();
         }
+    }
 
+    playerShoot() {
         if (this.keys.space) {
             const bullet = this.playerTank.shoot();
             if (bullet) {
@@ -248,13 +265,13 @@ export class Game {
                 this.audio.shoot.play();
             }
         }
+    }
 
-        // ИИ вражеских танков
+    updateEnemies(deltaTime: number) {
         this.enemies.forEach(enemy => {
             if (enemy.frozen) {
                 return;
             }
-            // Простое ИИ: движение и стрельба в случайном направлении
             if (Math.random() < 0.01) {
                 const directions = [
                     new THREE.Vector3(0, 0, -1),
@@ -283,6 +300,12 @@ export class Game {
             }
         });
 
+        if (Math.random() < 0.01) {
+            this.spawnEnemy();
+        }
+    }
+
+    updateBullets(deltaTime: number) {
         for (let i = this.bullets.length - 1; i >= 0; i--) {
             const bullet = this.bullets[i];
             bullet.update(deltaTime);
@@ -292,41 +315,43 @@ export class Game {
                 this.bullets.splice(i, 1);
             }
         }
+    }
 
+    updateEffects() {
         for (let i = this.effects.length - 1; i >= 0; i--) {
             if (this.effects[i].update()) {
                 this.scene.remove(this.effects[i].mesh);
                 this.effects.splice(i, 1);
             }
         }
+    }
 
+    updateBonuses() {
         this.bonuses.forEach(bonus => bonus.update());
         for (let i = this.bonuses.length - 1; i >= 0; i--) {
             if (!this.bonuses[i].active) {
                 this.bonuses.splice(i, 1);
             }
         }
+    }
 
-        if (Math.random() < 0.01) {
-            this.spawnEnemy();
-        }
-
-        if (this.enemiesDestroyed >= this.enemiesTotal) {
+    checkWin() {
+        if (this.enemiesDestroyed >= Game.ENEMIES_TOTAL) {
             this.levelCompleted = true;
             alert('Level completed!');
         }
     }
 
-    checkBulletCollision(bullet) {
-        if (Math.abs(bullet.position.x) > this.fieldSize / 2 ||
-            Math.abs(bullet.position.z) > this.fieldSize / 2) {
+    checkBulletCollision(bullet: Bullet) {
+        if (Math.abs(bullet.position.x) > Game.FIELD_SIZE / 2 ||
+            Math.abs(bullet.position.z) > Game.FIELD_SIZE / 2) {
             return true;
         }
 
-        const gridX = Math.floor((bullet.position.x + this.fieldSize / 2 - this.gameField.blockSize) / 2);
-        const gridZ = Math.floor((bullet.position.z + this.fieldSize / 2 - this.gameField.blockSize) / 2);
+        const gridX = Math.floor((bullet.position.x + Game.FIELD_SIZE / 2 - this.gameField.blockSize) / 2);
+        const gridZ = Math.floor((bullet.position.z + Game.FIELD_SIZE / 2 - this.gameField.blockSize) / 2);
 
-        if (gridX >= 0 && gridX < this.fieldSize && gridZ >= 0 && gridZ < this.fieldSize) {
+        if (gridX >= 0 && gridX < Game.FIELD_SIZE && gridZ >= 0 && gridZ < Game.FIELD_SIZE) {
             const block = this.gameField.grid[gridX][gridZ];
             if (block && block.userData) {
                 switch (block.userData.type) {
@@ -380,7 +405,7 @@ export class Game {
             )
         );
 
-        if (bullet.owner === 'enemy') {
+        if (bullet.owner === OWNER_TYPE.ENEMY) {
             const playerBox = new THREE.Box3().setFromObject(this.playerTank.mesh);
             if (bulletBox.intersectsBox(playerBox)) {
                 if (!this.playerTank.invulnerable && this.playerTank.takeDamage()) {
@@ -411,27 +436,8 @@ export class Game {
                         this.enemiesDestroyed++;
                         let ran = Math.random();
 
-                        if (ran < 1) {
-                            const bonusTypes = [
-                                BONUS_TYPE.STAR,
-                                BONUS_TYPE.HELMET,
-                                BONUS_TYPE.BOMB,
-                                BONUS_TYPE.MACHINE_GUN,
-                                BONUS_TYPE.CLOCK,
-                                // BONUS_TYPE.SHIELD,
-                            ];
-                            const type = bonusTypes[Math.floor(Math.random() * bonusTypes.length)];
-                            const position = new THREE.Vector3(
-                                Math.floor(enemy.position.x),
-                                enemy.position.y,
-                                Math.floor(enemy.position.z),
-                            );
-                            const bonus = new Bonus(this.scene, type, position);
-                            this.bonuses.push(bonus);
-                            if (this.gameField.grid[Math.floor(bonus.position.x)] === undefined) {
-                                this.gameField.grid[Math.floor(bonus.position.x)] = [];
-                            }
-                            this.gameField.grid[Math.floor(bonus.position.x)][Math.floor(bonus.position.z)] = bonus;
+                        if (ran < Game.BONUS_CHANCE) {
+                            this.spawnBonus(enemy.position.clone());
                         }
                     }
                     this.createExplosion(bullet.position);
@@ -439,8 +445,29 @@ export class Game {
                 }
             }
         }
+    }
 
-        return false;
+    spawnBonus(position: Vector3) {
+        const bonusTypes = [
+            BONUS_TYPE.STAR,
+            BONUS_TYPE.HELMET,
+            BONUS_TYPE.BOMB,
+            BONUS_TYPE.MACHINE_GUN,
+            BONUS_TYPE.CLOCK,
+            BONUS_TYPE.SHIELD,
+        ];
+        const type = bonusTypes[Math.floor(Math.random() * bonusTypes.length)];
+        const positionBonus = new THREE.Vector3(
+            Math.floor(position.x),
+            position.y,
+            Math.floor(position.z),
+        );
+        const bonus = new Bonus(this.scene, type, positionBonus);
+        this.bonuses.push(bonus);
+        if (this.gameField.grid[Math.floor(bonus.position.x)] === undefined) {
+            this.gameField.grid[Math.floor(bonus.position.x)] = [];
+        }
+        this.gameField.grid[Math.floor(bonus.position.x)][Math.floor(bonus.position.z)] = bonus;
     }
 
     createExplosion(position) {
@@ -462,12 +489,12 @@ export class Game {
         ];
 
         for (const point of checkPoints) {
-            const gridX = Math.floor((point.x + this.fieldSize / 2) / 2);
-            const gridZ = Math.floor((point.z + this.fieldSize / 2) / 2);
+            const gridX = Math.floor((point.x + Game.FIELD_SIZE / 2) / 2);
+            const gridZ = Math.floor((point.z + Game.FIELD_SIZE / 2) / 2);
 
             if (
-                gridX >= 0 && gridX < this.fieldSize &&
-                gridZ >= 0 && gridZ < this.fieldSize
+                gridX >= 0 && gridX < Game.FIELD_SIZE &&
+                gridZ >= 0 && gridZ < Game.FIELD_SIZE
             ) {
                 const block = this.gameField.grid[gridX][gridZ];
                 if (block &&
@@ -485,18 +512,14 @@ export class Game {
         return false;
     }
 
-    isPositionBonus(position: THREE.Vector3, tankSize: number): Bonus | null {
-        // Радиус обнаружения бонуса (можно настроить)
+    isPositionBonus(position: THREE.Vector3): Bonus | null {
         const detectionRadius = 1;
 
-        // Проверяем все активные бонусы
         for (const bonus of this.bonuses) {
             if (!bonus.active) continue;
 
-            // Рассчитываем расстояние между танком и бонусом
             const distance = position.distanceTo(bonus.position);
 
-            // Если бонус в радиусе обнаружения
             if (distance <= detectionRadius) {
                 return bonus;
             }
@@ -506,10 +529,10 @@ export class Game {
     }
 
     isPositionValid(position: Vector3, tankSize: number): boolean {
-        const minX = -this.fieldSize / 2 + tankSize * 5;
-        const maxX = this.fieldSize / 2 - tankSize * 5;
-        const minZ = -this.fieldSize / 2 + tankSize * 5;
-        const maxZ = this.fieldSize / 2 - tankSize * 5;
+        const minX = -Game.FIELD_SIZE / 2 + tankSize * 5;
+        const maxX = Game.FIELD_SIZE / 2 - tankSize * 5;
+        const minZ = -Game.FIELD_SIZE / 2 + tankSize * 5;
+        const maxZ = Game.FIELD_SIZE / 2 - tankSize * 5;
 
         return position.x >= minX &&
             position.x <= maxX &&

@@ -1,6 +1,5 @@
 import * as THREE from "three";
 import {Scene, Vector3} from "three";
-import {Tank} from "./Tank.ts";
 import {ModelLoader} from "./ModelLoader.ts";
 
 export enum BONUS_TYPE {
@@ -92,11 +91,9 @@ export class Bonus {
     }
 
     update() {
-        // Анимация парения
         this.mesh.position.y = this.position.y + Math.sin(Date.now() * 0.005) * 0.2;
         this.mesh.rotation.y += 0.02;
 
-        // Проверка времени жизни
         if (Date.now() - this.birthTime > this.lifetime) {
             this.active = false;
             this.scene.remove(this.mesh);
@@ -147,7 +144,7 @@ export class Bonus {
 
                 break;
             case BONUS_TYPE.SHIELD:
-                await game.gameField.addProtectionAroundHQ(); // todo сделать нормальный публичный метод чтобы возращать мешы
+                await game.gameField.addProtectionAroundHQ();
                 break;
         }
 
