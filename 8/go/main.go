@@ -136,7 +136,7 @@ func initScene() {
 
 	// Создание куба в сцене
 	cubeMaterial := Material{
-		DiffuseColor:  Vector{0.8, 0.2, 0.2},
+		DiffuseColor:  Vector{0.8, 0.5, 0.2},
 		SpecularColor: Vector{0.5, 0.5, 0.5},
 		AmbientColor:  Vector{0.1, 0.1, 0.1},
 		Shininess:     20,
@@ -144,13 +144,13 @@ func initScene() {
 	}
 	cube := NewCube(Vector{-7, -2, -10}, 2.0, cubeMaterial)
 
-	//torus := NewTorus(1.0, 0.3, Material{
-	//	DiffuseColor:  Vector{0.7, 0.7, 0.2},
-	//	SpecularColor: Vector{0.5, 0.5, 0.5},
-	//	AmbientColor:  Vector{0.1, 0.1, 0.1},
-	//	Shininess:     20,
-	//	Reflectivity:  0.3,
-	//})
+	torus := NewTorus(1.0, 0.3, Material{
+		DiffuseColor:  Vector{0.7, 0.7, 0.2},
+		SpecularColor: Vector{0.5, 0.5, 0.5},
+		AmbientColor:  Vector{0.1, 0.1, 0.1},
+		Shininess:     20,
+		Reflectivity:  0.3,
+	})
 
 	tetrahedronMaterial := Material{
 		DiffuseColor:  Vector{0.1, 0.1, 0.9},
@@ -179,25 +179,16 @@ func initScene() {
 	objects = []SceneObject{
 		cube,
 		tetrahedron,
-		//torus,
+		torus,
 		NewInfinityChessBoard(
-			4,
+			2,
 			Vector{0, 0, 0},
 			Vector{1, 1, 1},
 		),
 		NewSphere(
-			Vector{0, -2, -10}, 2,
+			Vector{0, -2, -15}, 2,
 			Material{
-				DiffuseColor:  Vector{1, 0, 0},
-				SpecularColor: Vector{1, 1, 1},
-				AmbientColor:  Vector{0.1, 0.1, 0.1},
-				Shininess:     32,
-			},
-		),
-		NewSphere(
-			Vector{5, -2, -15}, 2,
-			Material{
-				DiffuseColor:  Vector{0, 1, 0},
+				DiffuseColor:  Vector{1, 1, 0},
 				SpecularColor: Vector{1, 1, 1},
 				AmbientColor:  Vector{0.1, 0.1, 0.1},
 				Shininess:     32,
