@@ -1,14 +1,20 @@
 package main
 
 import (
-	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"image"
 	"image/color"
+	"image/png"
 	"log"
 	"math"
 	"math/rand"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
+
+	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/sqweek/dialog"
 )
 
 const (
@@ -21,11 +27,12 @@ const (
 )
 
 var (
-	objects   []SceneObject
-	light     DirectionalLight
-	camera    Camera
-	img       *image.RGBA
-	skybox, _ = NewSkybox("skubox.jpeg")
+	objects        []SceneObject
+	light          DirectionalLight
+	camera         Camera
+	img            *image.RGBA
+	saveKeyPressed bool
+	skybox, _      = NewSkybox("skubox.jpeg")
 )
 
 func initScene() {
@@ -47,17 +54,17 @@ func initScene() {
 	}
 	cube := NewCube(Vector{-7, -2, -10}, 2.0, cubeMaterial)
 
-	torus := NewTorus(1.0, 0.3, Material{
-		DiffuseColor:  Vector{0.7, 0.7, 0.2},
-		SpecularColor: Vector{0.5, 0.5, 0.5},
-		AmbientColor:  Vector{0.1, 0.1, 0.1},
-		Shininess:     20,
-		Reflectivity:  0.3,
-	})
+	//torus := NewTorus(1.0, 0.3, Material{
+	//	DiffuseColor:  Vector{0.7, 0.7, 0.2},
+	//	SpecularColor: Vector{0.5, 0.5, 0.5},
+	//	AmbientColor:  Vector{0.1, 0.1, 0.1},
+	//	Shininess:     20,
+	//	Reflectivity:  0.3,
+	//})
 
 	objects = []SceneObject{
 		cube,
-		torus,
+		//torus,
 		NewInfinityChessBoard(
 			4,
 			Vector{0, 0, 0},
@@ -84,7 +91,7 @@ func initScene() {
 	}
 
 	light = NewLight(
-		Vector{-1, 1, -1},
+		Vector{0, 1, -1},
 		1.0,
 		Vector{1, 1, 1},
 		Vector{1, 1, 1},
@@ -154,6 +161,18 @@ func (g *Game) Update() error {
 		go renderScene()
 		g.rendered = true
 	}
+
+	// Обработка нажатия клавиши S для сохранения
+	if ebiten.IsKeyPressed(ebiten.KeyS) && !saveKeyPressed {
+		saveKeyPressed = true
+		go func() {
+			saveImageWithDialog()
+			saveKeyPressed = false
+		}()
+	} else if !ebiten.IsKeyPressed(ebiten.KeyS) {
+		saveKeyPressed = false
+	}
+
 	return nil
 }
 
@@ -166,6 +185,56 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return screenWidth, screenHeight
+}
+
+func saveImageWithDialog() {
+	if img == nil {
+		return
+	}
+
+	// Открываем диалоговое окно для выбора файла
+	filename, err := dialog.File().
+		Title("Save Image").
+		Filter("PNG Image", "png").
+		SetStartDir(".").
+		Save()
+
+	if err != nil {
+		if err != dialog.ErrCancelled {
+			log.Printf("Failed to open save dialog: %v", err)
+		}
+		return
+	}
+
+	// Добавляем расширение .png, если его нет
+	if !strings.HasSuffix(strings.ToLower(filename), ".png") {
+		filename += ".png"
+	}
+
+	// Создаем директорию, если она не существует
+	dir := filepath.Dir(filename)
+	if dir != "" {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			log.Printf("Failed to create directory: %v", err)
+			return
+		}
+	}
+
+	// Создаем файл
+	file, err := os.Create(filename)
+	if err != nil {
+		log.Printf("Failed to create file: %v", err)
+		return
+	}
+	defer file.Close()
+
+	// Сохраняем изображение
+	if err := png.Encode(file, img); err != nil {
+		log.Printf("Failed to encode PNG: %v", err)
+		return
+	}
+
+	log.Printf("Image successfully saved to %s", filename)
 }
 
 func renderScene() {
@@ -239,7 +308,7 @@ func main() {
 	skybox, _ = NewSkybox("skubox.jpeg")
 
 	ebiten.SetWindowSize(screenWidth, screenHeight)
-	ebiten.SetWindowTitle("Go Raytracer - Progressive Rendering")
+	ebiten.SetWindowTitle("Go Raytracer - Progressive Rendering (Press S to save)")
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeDisabled)
 
 	game := &Game{}
