@@ -305,7 +305,7 @@ func renderScene() {
 
 func main() {
 	initScene()
-	skybox, _ = NewSkybox("skubox.jpeg")
+	skybox, _ = NewSkybox("windows.png")
 
 	ebiten.SetWindowSize(screenWidth, screenHeight)
 	ebiten.SetWindowTitle("Go Raytracer - Progressive Rendering (Press S to save)")
