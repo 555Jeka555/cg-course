@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"math"
 )
 
@@ -15,10 +14,6 @@ func NewRay(origin, direction Vector) Ray {
 		Origin:    origin,
 		Direction: direction.Normalize(),
 	}
-}
-
-func (r Ray) String() string {
-	return fmt.Sprintf("Ray(origin: %v, direction: %v)", r.Origin, r.Direction)
 }
 
 func (r Ray) Cast(objects []SceneObject) (IntersectionResult, SceneObject, bool) {

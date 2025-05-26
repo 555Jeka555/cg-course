@@ -54,6 +54,6 @@ func (s *Sphere) GetNormal(hitPosition Vector) Vector {
 	return hitPosition.Sub(s.Center).Normalize()
 }
 
-func (s *Sphere) GetMaterial(hitPosition Vector) Material {
+func (s *Sphere) GetMaterial(_ Vector) Material {
 	return s.material
 }

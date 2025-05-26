@@ -1,24 +1,21 @@
 package main
 
-// SceneObject определяет общий интерфейс для всех объектов сцены
 type SceneObject interface {
-	Intersection(ray Ray) (IntersectionResult, bool) // Проверка пересечения с лучом
-	GetNormal(hitPosition Vector) Vector             // Получение нормали в точке
-	GetMaterial(hitPosition Vector) Material         // Получение материала объекта
+	Intersection(ray Ray) (IntersectionResult, bool)
+	GetNormal(hitPosition Vector) Vector
+	GetMaterial(hitPosition Vector) Material
 }
 
-// IntersectionResult содержит полную информацию о пересечении
 type IntersectionResult struct {
-	Point    Vector      // Точка пересечения
-	Distance float64     // Расстояние от начала луча
-	Object   SceneObject // Ссылка на объект
+	Point    Vector
+	Distance float64
+	Object   SceneObject
 }
 
-// Material содержит свойства материала объекта
 type Material struct {
 	DiffuseColor  Vector
 	SpecularColor Vector
 	AmbientColor  Vector
 	Shininess     float64
-	Reflectivity  float64 // Добавим коэффициент отражения
+	Reflectivity  float64
 }

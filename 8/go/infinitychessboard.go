@@ -38,7 +38,7 @@ func (b *InfinityChessBoard) Intersection(ray Ray) (IntersectionResult, bool) {
 	}, true
 }
 
-func (b *InfinityChessBoard) GetNormal(hitPosition Vector) Vector {
+func (b *InfinityChessBoard) GetNormal(_ Vector) Vector {
 	return Vector{0, -1, 0}
 }
 

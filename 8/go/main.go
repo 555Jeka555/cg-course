@@ -20,40 +20,42 @@ import (
 const (
 	screenWidth     = 1600
 	screenHeight    = 600
-	shadowBias      = 0.0001
-	maxReflections  = 4
-	samplesPerPixel = 3
-	lineForGorutine = 90
+	shadowBias      = 0.0001 // Смещение для избежания самозатенения
+	maxReflections  = 4      // Максимальное количество отражений
+	samplesPerPixel = 3      // Сэмплов на пиксель (для антиалиасинга)
+	gorutineLines   = 90     // Количество строк на одну горутину
 )
 
 var (
-	objects        []SceneObject
-	light          DirectionalLight
-	camera         Camera
-	img            *image.RGBA
-	saveKeyPressed bool
-	skybox, _      = NewSkybox("skubox.jpeg")
+	objects        []SceneObject              // Объекты сцены
+	light          DirectionalLight           // Источник света
+	camera         Camera                     // Камера
+	img            *image.RGBA                // Изображение для рендеринга
+	saveKeyPressed bool                       // Флаг нажатия клавиши сохранения
+	skybox, _      = NewSkybox("skubox.jpeg") // Скайбокс
 )
 
 func initScene() {
+	// Инициализация камеры
 	camera = NewCamera(
-		Vector{0, 0, 10},
-		Vector{float64(screenWidth), float64(screenHeight), 0},
-		60,
-		15.0,
-		0.5,
+		Vector{0, 0, 10}, // Позиция камеры
+		Vector{float64(screenWidth), float64(screenHeight), 0}, // Разрешение
+		60,   // Угол обзора
+		15.0, // Фокусное расстояние
+		0.5,  // Апертура
 	)
 
-	// Создание куба в сцене
+	// Материал для куба
 	cubeMaterial := Material{
-		DiffuseColor:  Vector{0.8, 0.5, 0.2},
-		SpecularColor: Vector{0.5, 0.5, 0.5},
-		AmbientColor:  Vector{0.1, 0.1, 0.1},
-		Shininess:     20,
-		Reflectivity:  0.3,
+		DiffuseColor:  Vector{0.8, 0.5, 0.2}, // Диффузный цвет
+		SpecularColor: Vector{0.5, 0.5, 0.5}, // Зеркальный цвет
+		AmbientColor:  Vector{0.1, 0.1, 0.1}, // Фоновый цвет
+		Shininess:     20,                    // Блеск
+		Reflectivity:  0.3,                   // Отражательная способность
 	}
 	cube := NewCube(Vector{-7, -2, -10}, 2.0, cubeMaterial)
 
+	// Материал для тора
 	torus := NewTorus(1.0, 0.3, Material{
 		DiffuseColor:  Vector{0.7, 1, 1},
 		SpecularColor: Vector{0.5, 0.5, 0.5},
@@ -62,15 +64,16 @@ func initScene() {
 		Reflectivity:  0.3,
 	})
 
+	// Материал для тетраэдра
 	tetrahedronMaterial := Material{
-		DiffuseColor:  Vector{0.1, 0.1, 0.9},
+		DiffuseColor:  Vector{0.1, 0.1, 0.9}, // Синий цвет
 		SpecularColor: Vector{0.5, 0.5, 0.5},
 		AmbientColor:  Vector{0.1, 0.1, 0.1},
 		Shininess:     20,
 		Reflectivity:  0.3,
 	}
 
-	// Базовые вершины тетраэдра
+	// Создание тетраэдра с базовыми вершинами
 	tetrahedron := NewTetrahedron(
 		Vector{3, -2, -10},
 		Vector{5, -2, -10},
@@ -79,26 +82,28 @@ func initScene() {
 		tetrahedronMaterial,
 	)
 
+	// Применение преобразований к тетраэдру
 	transform := Identity().
-		Multiply(Translate(-5, -1, 5)).
-		Multiply(RotateY(math.Pi / 4)).
-		Multiply(Scale(1.5, 1.5, 1.5))
+		Multiply(Translate(-5, -1, 5)). // Перемещение
+		Multiply(RotateY(math.Pi / 4)). // Вращение вокруг Y
+		Multiply(Scale(1.5, 1.5, 1.5))  // Масштабирование
 
 	tetrahedron.ApplyTransform(transform)
 
+	// Добавление объектов на сцену
 	objects = []SceneObject{
 		torus,
 		cube,
 		tetrahedron,
-		NewInfinityChessBoard(
+		NewInfinityChessBoard( // Бесконечная шахматная доска
 			2,
 			Vector{0, 0, 0},
 			Vector{1, 1, 1},
 		),
-		NewSphere(
+		NewSphere( // Сфера
 			Vector{0, -2, -15}, 2,
 			Material{
-				DiffuseColor:  Vector{1, 1, 0},
+				DiffuseColor:  Vector{1, 1, 0}, // Желтый цвет
 				SpecularColor: Vector{1, 1, 1},
 				AmbientColor:  Vector{0.1, 0.1, 0.1},
 				Shininess:     32,
@@ -106,75 +111,84 @@ func initScene() {
 		),
 	}
 
+	// Настройка источника света
 	light = NewLight(
-		Vector{0, 1, -1},
-		1.0,
-		Vector{1, 1, 1},
-		Vector{1, 1, 1},
-		Vector{0.2, 0.2, 0.2},
+		Vector{0, 1, -1},      // Направление света
+		1.0,                   // Интенсивность
+		Vector{1, 1, 1},       // Цвет диффузного света
+		Vector{1, 1, 1},       // Цвет зеркального света
+		Vector{0.2, 0.2, 0.2}, // Цвет фонового света
 	)
 }
 
+// Умножение цветов (покомпонентное)
 func multiplyColors(a, b Vector) Vector {
 	return Vector{a.X * b.X, a.Y * b.Y, a.Z * b.Z}
 }
 
+// Сложение цветов (покомпонентное)
 func addColors(a, b Vector) Vector {
 	return Vector{a.X + b.X, a.Y + b.Y, a.Z + b.Z}
 }
 
+// Трассировка луча
 func traceRay(ray Ray) (Vector, *Vector, SceneObject, Vector) {
-	color := Vector{0, 0, 0}
-	var normal Vector
-	var intersect *Vector
-	var obj SceneObject
+	color := Vector{0, 0, 0} // Итоговый цвет
+	var normal Vector        // Нормаль в точке пересечения
+	var intersect *Vector    // Точка пересечения
+	var obj SceneObject      // Объект пересечения
 
+	// Проверка пересечения луча с объектами
 	point, obj, hit := ray.Cast(objects)
 	if hit {
 		intersect = &point.Point
 		normal = obj.GetNormal(point.Point)
 		material := obj.GetMaterial(point.Point)
 
-		// Ambient component (always present)
+		// Фоновая составляющая (всегда присутствует)
 		ambient := multiplyColors(material.AmbientColor, light.AmbientColor)
 
-		// Initialize diffuse and specular components to zero
+		// Инициализация диффузной и зеркальной составляющих
 		diffuse := Vector{0, 0, 0}
 		specular := Vector{0, 0, 0}
 
-		// Check if point is in shadow
+		// Проверка нахождения точки в тени
 		lightDir := light.Direction.Neg().Normalize()
 		shadowRay := Ray{Origin: point.Point.Add(lightDir.Mul(0.001)), Direction: lightDir}
 		_, _, shadowHit := shadowRay.Cast(objects)
 
 		if !shadowHit {
-			// Diffuse component (only if not in shadow)
+			// закон Ламберта
+			// Диффузная составляющая (только если не в тени)
 			diffuseIntensity := math.Max(0, normal.Dot(lightDir)) * light.Strength
 			diffuse = multiplyColors(material.DiffuseColor, light.DiffuseColor).Mul(diffuseIntensity)
 
-			// Specular component (only if not in shadow)
+			// Зеркальная составляющая (только если не в тени)
 			viewDir := camera.Position.Sub(point.Point).Normalize()
 			reflectDir := normal.Mul(2 * normal.Dot(lightDir)).Sub(lightDir)
 			specularIntensity := math.Pow(math.Max(0, viewDir.Dot(reflectDir)), material.Shininess)
 			specular = multiplyColors(material.SpecularColor, light.SpecularColor).Mul(specularIntensity)
 		}
 
-		// Combine all components
+		// Комбинирование всех составляющих
 		color = addColors(ambient, addColors(diffuse, specular))
 	} else {
+		// Если нет пересечения - цвет из скайбокса
 		color = skybox.GetImageCoords(ray.Direction)
 	}
 
 	return color, intersect, obj, normal
 }
 
+// Структура игры
 type Game struct {
-	rendered bool
+	rendered bool // Флаг завершения рендеринга
 }
 
+// Обновление состояния игры
 func (g *Game) Update() error {
 	if !g.rendered {
-		go renderScene()
+		go renderScene() // Запуск рендеринга
 		g.rendered = true
 	}
 
@@ -192,23 +206,26 @@ func (g *Game) Update() error {
 	return nil
 }
 
+// Отрисовка кадра
 func (g *Game) Draw(screen *ebiten.Image) {
 	if img != nil {
-		screen.ReplacePixels(img.Pix)
+		screen.ReplacePixels(img.Pix) // Обновление пикселей экрана
 	}
 	ebitenutil.DebugPrint(screen, "Go Raytracer - Progressive Rendering")
 }
 
+// Установка размера окна
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return screenWidth, screenHeight
 }
 
+// Сохранение изображения через диалоговое окно
 func saveImageWithDialog() {
 	if img == nil {
 		return
 	}
 
-	// Открываем диалоговое окно для выбора файла
+	// Открытие диалогового окна для выбора файла
 	filename, err := dialog.File().
 		Title("Save Image").
 		Filter("PNG Image", "png").
@@ -217,53 +234,56 @@ func saveImageWithDialog() {
 
 	if err != nil {
 		if err != dialog.ErrCancelled {
-			log.Printf("Failed to open save dialog: %v", err)
+			log.Printf("Ошибка открытия диалога сохранения: %v", err)
 		}
 		return
 	}
 
-	// Добавляем расширение .png, если его нет
+	// Добавление расширения .png при необходимости
 	if !strings.HasSuffix(strings.ToLower(filename), ".png") {
 		filename += ".png"
 	}
 
-	// Создаем директорию, если она не существует
+	// Создание директории, если она не существует
 	dir := filepath.Dir(filename)
 	if dir != "" {
 		if err := os.MkdirAll(dir, 0755); err != nil {
-			log.Printf("Failed to create directory: %v", err)
+			log.Printf("Ошибка создания директории: %v", err)
 			return
 		}
 	}
 
-	// Создаем файл
+	// Создание файла
 	file, err := os.Create(filename)
 	if err != nil {
-		log.Printf("Failed to create file: %v", err)
+		log.Printf("Ошибка создания файла: %v", err)
 		return
 	}
 	defer file.Close()
 
-	// Сохраняем изображение
+	// Сохранение изображения в формате PNG
 	if err := png.Encode(file, img); err != nil {
-		log.Printf("Failed to encode PNG: %v", err)
+		log.Printf("Ошибка кодирования PNG: %v", err)
 		return
 	}
 
-	log.Printf("Image successfully saved to %s", filename)
+	log.Printf("Изображение успешно сохранено в %s", filename)
 }
 
+// Рендеринг сцены
 func renderScene() {
 	rand.Seed(time.Now().UnixNano())
 	img = image.NewRGBA(image.Rect(0, 0, screenWidth, screenHeight))
 
-	for i := 0; i < screenHeight/lineForGorutine; i++ {
+	// Параллельный рендеринг по строкам
+	for i := 0; i < screenHeight/gorutineLines; i++ {
 		i := i
 		go func() {
-			for y := i * lineForGorutine; y < (i+1)*lineForGorutine; y++ {
+			for y := i * gorutineLines; y < (i+1)*gorutineLines; y++ {
 				for x := 0; x < screenWidth; x++ {
 					colorSum := Vector{0, 0, 0}
 
+					// Сэмплирование для антиалиасинга
 					for s := 0; s < samplesPerPixel; s++ {
 						jx := float64(x) + rand.Float64() - 0.5
 						jy := float64(y) + rand.Float64() - 0.5
@@ -282,6 +302,7 @@ func renderScene() {
 							reflectionColor := Vector{0, 0, 0}
 							reflectionTimes := 0
 
+							// Рекурсивная трассировка отражений
 							for r := 0; r < maxReflections; r++ {
 								newColor, newIntersect, _, newNormal := traceRay(reflectionRay)
 								if newIntersect != nil {
@@ -305,6 +326,7 @@ func renderScene() {
 						colorSum = colorSum.Add(color)
 					}
 
+					// Усреднение цвета по сэмплам
 					avgColor := colorSum.Div(float64(samplesPerPixel))
 					r, g, b := avgColor.ToRGB()
 					img.Set(x, y, color.RGBA{
@@ -323,10 +345,12 @@ func main() {
 	initScene()
 	skybox, _ = NewSkybox("windows.png")
 
+	// Настройка окна
 	ebiten.SetWindowSize(screenWidth, screenHeight)
 	ebiten.SetWindowTitle("Go Raytracer - Progressive Rendering (Press S to save)")
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeDisabled)
 
+	// Запуск игры
 	game := &Game{}
 	if err := ebiten.RunGame(game); err != nil {
 		log.Fatal(err)

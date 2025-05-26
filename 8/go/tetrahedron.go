@@ -128,7 +128,7 @@ func (t *Tetrahedron) GetNormal(hitPosition Vector) Vector {
 	return edge1.Cross(edge2).Normalize()
 }
 
-func (t *Tetrahedron) GetMaterial(hitPosition Vector) Material {
+func (t *Tetrahedron) GetMaterial(_ Vector) Material {
 	return t.material
 }
 

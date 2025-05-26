@@ -1,7 +1,5 @@
 package main
 
-import "fmt"
-
 type DirectionalLight struct {
 	Direction     Vector
 	Strength      float64
@@ -18,10 +16,6 @@ func NewLight(direction Vector, strength float64, diffuse, specular, ambient Vec
 		SpecularColor: specular,
 		AmbientColor:  ambient,
 	}
-}
-
-func (l DirectionalLight) String() string {
-	return fmt.Sprintf("DirectionalLight(direction: %v, strength: %.2f)", l.Direction, l.Strength)
 }
 
 func (l DirectionalLight) GetDirectionToLight(hitPoint Vector) Vector {
