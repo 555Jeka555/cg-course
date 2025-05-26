@@ -41,7 +41,7 @@ void main()
 
         // Последовательность расходится если |Zn| > 2
 
-        if (x * x + y * y > 4.0)
+        if (x * x + y * y > 1000000.0)
             break;
 
         current_iteration_value.x = x;
@@ -51,7 +51,7 @@ void main()
     }
 
     const float normalized_iteration = float(iteration) / float(max_iterations); // В диапозон [0, 1]
-    vec3 color = texture(palette_texture, normalized_iteration).rgb;
+    vec3 color = texture(palette_texture, normalized_iteration).rgb;  // todo высота в один пиксели и градиент
 
     pixel_color = vec4((iteration == max_iterations ? vec3(0.0) : color), 1.0);
 }
@@ -68,7 +68,7 @@ void main()
 }
 """
 
-
+# TODO resize
 class GLWidget(QtWidgets.QOpenGLWidget):
     def __init__(self, parent=None):
         super(GLWidget, self).__init__(parent)
@@ -77,7 +77,7 @@ class GLWidget(QtWidgets.QOpenGLWidget):
 
         self.area_w = np.array([-2.0, 1.0], dtype=np.float32)  # Диапазон по X (Re)
         self.area_h = np.array([-1.0, 1.0], dtype=np.float32)  # Диапазон по Y (Im)
-        self.max_iterations = 1000 # разрешение, можно увеличить
+        self.max_iterations = 5000 # разрешение, можно увеличить
 
         self.zoom_factor = 0.1
         self.last_pos = None

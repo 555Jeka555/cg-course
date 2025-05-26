@@ -29,7 +29,7 @@ void main()
     vec3 final_position = vec3(position.x, position.y, position.x * position.x - position.y * position.y);    // Седло
     vec3 morphed_position = mix(initial_position, final_position, progress);   //  линейная интерполяция
 
-    gl_Position = projection * view * model * vec4(morphed_position, 1.0);
+    gl_Position = projection * view * model * vec4(morphed_position, 1.0); // TODO лишние произведения в основной программе
 }
 """
 
@@ -56,7 +56,7 @@ class GLWidget(QtWidgets.QOpenGLWidget):
 
         self.timer = QtCore.QTimer(self)
         self.timer.timeout.connect(self.update_progress)
-        self.timer.start(15)
+        self.timer.start(6)
 
     def initializeGL(self):
         glClearColor(0.2, 0.2, 0.2, 1.0)
